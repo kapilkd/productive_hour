@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  super_admin
+  admin
+  student
+}
+
+enum AudioStatus {
+  pending
+  generating
+  ready
+  failed
+}
+
+enum ChapterStatus {
+  not_started
+  in_progress
+  completed
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+model User {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+
+  createdClasses   Class[]                  @relation("ClassCreatedBy")
+  createdSubjects  Subject[]                @relation("SubjectCreatedBy")
+  studentAccesses  StudentSubjectAccess[]   @relation("StudentAccess")
+  grantedAccesses  StudentSubjectAccess[]   @relation("GrantedBy")
+  chapterProgress  StudentChapterProgress[]
+  frameProgress    StudentFrameProgress[]
+  iqScores         StudentIqScore[]
+  questions        LlmQuestion[]
+  responses        StudentQuestionResponse[]
+
+  @@map("users")
+}
+
+model Class {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  createdBy   String    @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  creator  User      @relation("ClassCreatedBy", fields: [createdBy], references: [id])
+  subjects Subject[]
+
+  @@map("classes")
+}
+
+model Subject {
+  id                   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classId              String  @map("class_id") @db.Uuid
+  name                 String
+  description          String?
+  questionEveryNFrames Int     @default(3) @map("question_every_n_frames")
+  sequentialChapters   Boolean @default(true) @map("sequential_chapters")
+  createdBy            String  @map("created_by") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  class    Class    @relation(fields: [classId], references: [id])
+  creator  User     @relation("SubjectCreatedBy", fields: [createdBy], references: [id])
+  chapters Chapter[]
+  accesses StudentSubjectAccess[]
+  iqScores StudentIqScore[]
+
+  @@map("subjects")
+}
+
+model Chapter {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjectId   String    @map("subject_id") @db.Uuid
+  title       String
+  description String?
+  orderIndex  Int       @map("order_index")
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  subject    Subject                  @relation(fields: [subjectId], references: [id])
+  frames     Frame[]
+  progress   StudentChapterProgress[]
+  questions  LlmQuestion[]
+
+  @@map("chapters")
+}
+
+model Frame {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chapterId       String      @map("chapter_id") @db.Uuid
+  orderIndex      Int         @map("order_index")
+  contentText     String      @map("content_text")
+  imageUrl        String?     @map("image_url")
+  audioUrl        String?     @map("audio_url")
+  audioStatus     AudioStatus @default(pending) @map("audio_status")
+  durationSeconds Float?      @map("duration_seconds")
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  chapter  Chapter                @relation(fields: [chapterId], references: [id])
+  progress StudentFrameProgress[]
+
+  @@map("frames")
+}
+
+model StudentSubjectAccess {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId String    @map("student_id") @db.Uuid
+  subjectId String    @map("subject_id") @db.Uuid
+  grantedBy String    @map("granted_by") @db.Uuid
+  grantedAt DateTime  @default(now()) @map("granted_at") @db.Timestamptz
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz
+
+  student User    @relation("StudentAccess", fields: [studentId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+  granter User    @relation("GrantedBy", fields: [grantedBy], references: [id])
+
+  @@unique([studentId, subjectId])
+  @@map("student_subject_access")
+}
+
+model StudentChapterProgress {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId      String        @map("student_id") @db.Uuid
+  chapterId      String        @map("chapter_id") @db.Uuid
+  status         ChapterStatus @default(not_started)
+  lastFrameIndex Int           @default(0) @map("last_frame_index")
+  startedAt      DateTime?     @map("started_at") @db.Timestamptz
+  completedAt    DateTime?     @map("completed_at") @db.Timestamptz
+
+  student User    @relation(fields: [studentId], references: [id])
+  chapter Chapter @relation(fields: [chapterId], references: [id])
+
+  @@unique([studentId, chapterId])
+  @@map("student_chapter_progress")
+}
+
+model StudentFrameProgress {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId  String    @map("student_id") @db.Uuid
+  frameId    String    @map("frame_id") @db.Uuid
+  listened   Boolean   @default(false)
+  listenedAt DateTime? @map("listened_at") @db.Timestamptz
+
+  student User  @relation(fields: [studentId], references: [id])
+  frame   Frame @relation(fields: [frameId], references: [id])
+
+  @@unique([studentId, frameId])
+  @@map("student_frame_progress")
+}
+
+model StudentIqScore {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId String   @map("student_id") @db.Uuid
+  subjectId String   @map("subject_id") @db.Uuid
+  score     Int      @default(50)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  student User    @relation(fields: [studentId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([studentId, subjectId])
+  @@map("student_iq_scores")
+}
+
+model LlmQuestion {
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId         String     @map("student_id") @db.Uuid
+  chapterId         String     @map("chapter_id") @db.Uuid
+  triggerFrameIndex Int        @map("trigger_frame_index")
+  questionText      String     @map("question_text")
+  options           Json
+  correctOption     String     @map("correct_option")
+  difficulty        Difficulty
+  askedAt           DateTime   @default(now()) @map("asked_at") @db.Timestamptz
+
+  student   User                     @relation(fields: [studentId], references: [id])
+  chapter   Chapter                  @relation(fields: [chapterId], references: [id])
+  responses StudentQuestionResponse[]
+
+  @@map("llm_questions")
+}
+
+model StudentQuestionResponse {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId          String   @map("question_id") @db.Uuid
+  studentId           String   @map("student_id") @db.Uuid
+  selectedOption      String   @map("selected_option")
+  isCorrect           Boolean  @map("is_correct")
+  iqDelta             Int      @map("iq_delta")
+  responseTimeSeconds Float?   @map("response_time_seconds")
+  respondedAt         DateTime @default(now()) @map("responded_at") @db.Timestamptz
+
+  question LlmQuestion @relation(fields: [questionId], references: [id])
+  student  User        @relation(fields: [studentId], references: [id])
+
+  @@map("student_question_responses")
+}

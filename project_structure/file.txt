@@ -1,0 +1,647 @@
+================================================================================
+  LEARNFLOW — DEVELOPMENT GUIDE
+  LLM-Based Adaptive Learning Platform
+  Date: June 2026
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 1 — WHAT WAS DONE (PROJECT STRUCTURE CREATED)
+────────────────────────────────────────────────────────────────────────────────
+
+All module-level skeleton files have been created under /project_structure/.
+These are NOT empty files — every file contains real TypeScript/React code
+with correct types, function signatures, and business logic stubs derived
+directly from CLAUDE.md.
+
+FILES CREATED (42 total)
+─────────────────────────
+
+FOUNDATION
+  shared/types/index.ts              All domain types: User, Class, Subject,
+                                     Chapter, Frame, LlmQuestion, IQ scores,
+                                     Question responses, enums (Role, AudioStatus,
+                                     Difficulty, ChapterStatus)
+
+  docker-compose.yml                 PostgreSQL 15 + Redis 7 local dev stack
+  .env.example                       All env vars documented with comments
+
+DATABASE
+  api/src/prisma/schema.prisma       Full Prisma schema — 10 models, all relations,
+                                     enums, unique constraints, soft deletes
+
+  api/src/lib/prisma.ts              PrismaClient singleton (safe for hot-reload)
+
+API MIDDLEWARE
+  api/src/middleware/auth.ts         JWT verification → populates req.user
+  api/src/middleware/rbac.ts         requireRole([...]) factory — blocks wrong roles
+
+API SERVICES (pure business logic)
+  api/src/services/llm.service.ts    Claude API call with full prompt from CLAUDE.md,
+                                     retry on parse failure, null on second failure
+  api/src/services/iq.service.ts     updateIqScore() + getIqDelta() — pure functions
+  api/src/services/tts.service.ts    ElevenLabs → audio Buffer via stream
+  api/src/services/storage.service.ts  S3 upload/delete for audio + images
+
+API QUEUE
+  api/src/jobs/tts.job.ts            BullMQ queue + worker + enqueueTTSJob()
+                                     Worker: pending → generating → ready/failed
+
+API ROUTES
+  api/src/routes/auth.ts             POST login / refresh / logout
+  api/src/routes/admin/courses.ts    Full CRUD: classes, subjects, chapters, frames
+                                     Frame save auto-enqueues TTS job
+  api/src/routes/admin/students.ts   Create student, grant/revoke subject access,
+                                     view progress
+  api/src/routes/admin/analytics.ts  Platform overview stats
+  api/src/routes/student/subjects.ts My subjects (access-filtered) + IQ score
+  api/src/routes/student/chapters.ts Chapter list with progress merged + chapter detail
+  api/src/routes/student/progress.ts Mark frame listened, answer question,
+                                     IQ update, LLM question trigger (fire-and-forget)
+
+  api/src/app.ts                     Express app — CORS, cookie-parser, route mounts,
+                                     role guards applied at router level
+
+WEB — STORES (Zustand)
+  apps/web/src/stores/auth.store.ts      login/logout/refreshToken, persisted to
+                                         localStorage, restores Authorization header
+  apps/web/src/stores/player.store.ts    Howl lifecycle, frame advance, playback rate,
+                                         question phase open/close
+  apps/web/src/stores/progress.store.ts  Chapter progress map + IQ scores by subject
+
+WEB — SERVICES & HOOKS
+  apps/web/src/services/api.service.ts   Axios + 401 interceptor (auto-refresh)
+  apps/web/src/hooks/useAudio.ts         useChapterLoader: fetch chapter, load into
+                                         store, auto-play, cleanup on unmount
+  apps/web/src/hooks/usePlayer.ts        useAnswerQuestion: API call + store wiring
+
+WEB — COMPONENTS (Student)
+  ChapterHeader.tsx       Title + animated progress bar
+  FramePlayer.tsx         Image + large text + progress dots + audio controller
+  FrameProgressDots.tsx   One dot per frame, filled = listened
+  AudioController.tsx     Play/Pause, Prev/Next, 4 speed buttons (0.75x–1.5x)
+  QuestionOverlay.tsx     A/B/C/D buttons, feedback colors, IQ delta display,
+                          Continue button re-starts audio
+  ChapterCompleteModal.tsx  Next chapter or back-to-subject
+
+WEB — COMPONENTS (Admin)
+  FrameEditor.tsx         Text + image URL form, polls TTS status every 3s,
+                          shows audio preview player when ready
+  StudentTable.tsx        Table with active/inactive badge, navigate to detail
+
+WEB — SHARED
+  Layout.tsx              AdminLayout (sidebar nav) + StudentLayout (top header)
+                          Both use React Router <Outlet />
+
+WEB — PAGES (Admin)
+  DashboardPage.tsx       Stats grid — total students, subjects, avg IQ
+  ClassesPage.tsx         List classes, inline create form
+  ClassDetailPage.tsx     Subjects in class, create subject with N-frames config
+  SubjectDetailPage.tsx   Chapters list, create/delete chapter
+  ChapterDetailPage.tsx   Frames list, inline FrameEditor per frame, TTS status badges
+  StudentsPage.tsx        StudentTable + create student form
+  StudentDetailPage.tsx   IQ scores per subject, access grant/revoke dropdown,
+                          chapter progress log table
+  AnalyticsPage.tsx       Overview stats + Phase 4 chart placeholders
+
+WEB — PAGES (Student)
+  LoginPage.tsx           Email/password form, role-based redirect after login
+  SubjectsPage.tsx        Subject cards with IQ score badge
+  ListenPage.tsx          Composes all student components — the core experience
+  ProgressPage.tsx        Placeholder for Phase 4
+
+  App.tsx                 Full router with ProtectedRoute guard, all admin +
+                          student routes wired
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 2 — WHERE TO START
+────────────────────────────────────────────────────────────────────────────────
+
+Follow the phase plan from CLAUDE.md. Do NOT skip phases or jump ahead.
+Each phase builds on the previous one. Attempting Phase 2 (audio) before
+Phase 1 (database + auth) is stable will waste days debugging integration issues.
+
+START HERE → Phase 1, Step 1: Monorepo scaffold
+
+The correct development order within Phase 1 is:
+
+  1. Monorepo scaffold           ← you are here
+  2. Docker + database up
+  3. Prisma schema + migration
+  4. Auth API (login/refresh/logout)
+  5. JWT middleware + role guards
+  6. Admin course CRUD (text only, no audio)
+  7. Admin student management
+  8. Student login + subject list + chapter list
+  9. BullMQ + Redis wired up (queue ready, no jobs yet)
+
+Only after ALL of Phase 1 is working and tested → move to Phase 2 (audio).
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 3 — HOW TO CODE: STEP-BY-STEP DEVELOPMENT PLAN
+────────────────────────────────────────────────────────────────────────────────
+
+════════════════════════════════════════════════════════════════
+PHASE 1 — FOUNDATION  (Target: 4 weeks)
+════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 1 — MONOREPO SCAFFOLD                                  │
+└─────────────────────────────────────────────────────────────┘
+
+Create the folder structure at the root (copy from project_structure/):
+
+  /
+  ├── apps/web/
+  ├── api/
+  ├── shared/
+  ├── docker-compose.yml
+  └── .env.example
+
+Commands to run:
+  mkdir -p apps/web api/src shared/types
+  cd api && npm init -y
+  cd apps/web && npm create vite@latest . -- --template react-ts
+
+Install API dependencies:
+  cd api
+  npm install express @prisma/client prisma bcrypt jsonwebtoken
+              cookie-parser cors bullmq ioredis @anthropic-ai/sdk
+              elevenlabs @aws-sdk/client-s3 zod
+  npm install -D typescript @types/express @types/node @types/bcrypt
+              @types/jsonwebtoken @types/cookie-parser ts-node nodemon
+
+Install Web dependencies:
+  cd apps/web
+  npm install zustand axios howler react-router-dom react-hook-form zod
+  npm install -D @types/howler tailwindcss postcss autoprefixer
+
+Configure TypeScript tsconfig.json in both api/ and apps/web/.
+Configure Tailwind CSS in apps/web/.
+
+COPY FILES:
+  - Copy shared/types/index.ts from project_structure/
+  - Copy api/src/prisma/schema.prisma from project_structure/
+  - Copy docker-compose.yml from project_structure/
+  - Create .env from .env.example — fill in real secrets
+
+VERIFY: Both projects compile with no TypeScript errors.
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 2 — DATABASE + PRISMA                                  │
+└─────────────────────────────────────────────────────────────┘
+
+Start the database:
+  docker-compose up -d
+
+Run Prisma migration:
+  cd api
+  npx prisma migrate dev --name init
+
+This creates all 10 tables in PostgreSQL.
+
+Verify:
+  npx prisma studio    ← opens browser UI to inspect tables
+
+COPY FILES:
+  - Copy api/src/lib/prisma.ts from project_structure/
+
+VERIFY: npx prisma generate runs without errors.
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 3 — AUTH API                                           │
+└─────────────────────────────────────────────────────────────┘
+
+COPY FILES:
+  - api/src/middleware/auth.ts
+  - api/src/middleware/rbac.ts
+  - api/src/routes/auth.ts
+  - api/src/app.ts   (only mount authRoutes for now)
+
+Create api/src/server.ts:
+  import app from './app';
+  const PORT = process.env.PORT ?? 4000;
+  app.listen(PORT, () => console.log(`API running on :${PORT}`));
+
+Create a seed script to insert your first admin user:
+  cd api
+  npx ts-node src/seed.ts
+
+seed.ts content:
+  import prisma from './lib/prisma';
+  import bcrypt from 'bcrypt';
+
+  async function main() {
+    await prisma.user.create({
+      data: {
+        name: 'Admin',
+        email: 'admin@learnflow.com',
+        passwordHash: await bcrypt.hash('admin123', 10),
+        role: 'admin',
+      },
+    });
+    console.log('Seeded admin user');
+  }
+  main().then(() => prisma.$disconnect());
+
+TEST with curl or Postman:
+  POST http://localhost:4000/api/v1/auth/login
+  Body: { "email": "admin@learnflow.com", "password": "admin123" }
+  → Should return accessToken + user object
+
+  POST /auth/refresh   (using the httpOnly cookie)
+  → Should return new accessToken
+
+  POST /auth/logout    (with Authorization: Bearer <token>)
+  → Should clear the cookie
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 4 — ADMIN COURSE CRUD API                              │
+└─────────────────────────────────────────────────────────────┘
+
+COPY FILES:
+  - api/src/routes/admin/courses.ts
+  - api/src/routes/admin/students.ts
+  - api/src/routes/admin/analytics.ts
+
+Update api/src/app.ts to mount all admin routes (uncomment them).
+
+SKIP for now: enqueueTTSJob call in courses.ts — comment it out.
+  We will re-enable it in Phase 2.
+  Replace:
+    await enqueueTTSJob(frame.id, frame.contentText);
+  With:
+    // TTS: will be enabled in Phase 2
+
+TEST each endpoint with Postman:
+  POST /admin/classes           → create a class
+  GET  /admin/classes           → list classes
+  POST /admin/subjects          → create a subject in that class
+  POST /admin/chapters          → create a chapter
+  POST /admin/frames            → create a frame (text only, no audio yet)
+  GET  /admin/chapters/:id/frames  → list frames
+
+Confirm that 401 is returned when Authorization header is missing.
+Confirm that 403 is returned when a student token is used on admin routes.
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 5 — STUDENT API                                        │
+└─────────────────────────────────────────────────────────────┘
+
+COPY FILES:
+  - api/src/routes/student/subjects.ts
+  - api/src/routes/student/chapters.ts
+  - api/src/routes/student/progress.ts  (comment out triggerQuestion for now)
+
+Update app.ts to mount student routes.
+
+Create a student account via POST /admin/students.
+Grant that student access to a subject via POST /admin/students/:id/access.
+
+TEST:
+  Login as student → GET /student/subjects  → should see assigned subject
+  GET /student/subjects/:id/chapters        → should see chapters
+  GET /student/chapters/:id                 → should see frames with text
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 6 — WEB FRONTEND (Phase 1 screens only)                │
+└─────────────────────────────────────────────────────────────┘
+
+Start with these files in order:
+
+  1. apps/web/src/services/api.service.ts   (Axios + interceptor)
+  2. apps/web/src/stores/auth.store.ts      (login/logout/refresh)
+  3. apps/web/src/pages/LoginPage.tsx       (email + password form)
+  4. apps/web/src/components/shared/Layout.tsx  (AdminLayout + StudentLayout)
+  5. apps/web/src/App.tsx                   (router + ProtectedRoute)
+
+Start the Vite dev server:  cd apps/web && npm run dev
+Open http://localhost:5173 → you should see the login page.
+
+Login as admin → should redirect to /admin/dashboard.
+Login as student → should redirect to /student/subjects.
+
+Now add admin pages one by one (in the order the admin workflow flows):
+  6. apps/web/src/pages/admin/DashboardPage.tsx
+  7. apps/web/src/pages/admin/ClassesPage.tsx
+  8. apps/web/src/pages/admin/ClassDetailPage.tsx
+  9. apps/web/src/pages/admin/SubjectDetailPage.tsx
+  10. apps/web/src/pages/admin/ChapterDetailPage.tsx   (text only, no TTS yet)
+  11. apps/web/src/pages/admin/StudentsPage.tsx
+  12. apps/web/src/pages/admin/StudentDetailPage.tsx
+
+Then add student pages:
+  13. apps/web/src/stores/progress.store.ts
+  14. apps/web/src/pages/student/SubjectsPage.tsx
+  15. apps/web/src/pages/student/ListenPage.tsx        (text only, no audio yet)
+
+PHASE 1 IS COMPLETE WHEN:
+  ✓ Admin can log in
+  ✓ Admin can create Class → Subject → Chapter → Frames (text only)
+  ✓ Admin can create a student account
+  ✓ Admin can grant that student access to a subject
+  ✓ Student can log in, see their subject, open a chapter, and read frames
+  ✓ No audio, no LLM questions yet
+
+
+════════════════════════════════════════════════════════════════
+PHASE 2 — AUDIO ENGINE  (Target: weeks 5–8)
+════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 1 — TTS BACKEND                                        │
+└─────────────────────────────────────────────────────────────┘
+
+COPY FILES:
+  - api/src/services/tts.service.ts
+  - api/src/services/storage.service.ts
+  - api/src/jobs/tts.job.ts
+
+Set up real S3 bucket (or use LocalStack for local dev).
+Add ElevenLabs API key to .env.
+
+Re-enable enqueueTTSJob in api/src/routes/admin/courses.ts.
+Start the BullMQ worker in a separate process:
+  npx ts-node src/jobs/tts.job.ts
+
+TEST:
+  Create a new frame via POST /admin/frames
+  Poll GET /admin/frames/:id/tts-status every 3 seconds
+  → Status should go: pending → generating → ready
+  → audioUrl should be a valid S3 URL
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 2 — AUDIO FRONTEND                                     │
+└─────────────────────────────────────────────────────────────┘
+
+COPY FILES:
+  - apps/web/src/stores/player.store.ts     (Howl lifecycle)
+  - apps/web/src/hooks/useAudio.ts          (useChapterLoader)
+  - apps/web/src/components/student/ChapterHeader.tsx
+  - apps/web/src/components/student/FramePlayer.tsx
+  - apps/web/src/components/student/FrameProgressDots.tsx
+  - apps/web/src/components/student/AudioController.tsx
+  - apps/web/src/components/student/ChapterCompleteModal.tsx
+
+Update ListenPage.tsx to use all these components.
+Update FrameEditor.tsx in admin to poll TTS status + show audio preview.
+
+TEST end-to-end:
+  Admin creates a frame → audio generates → S3 URL stored in DB
+  Student opens chapter → audio starts within 2 seconds
+  Audio plays frame by frame automatically
+  Speed controls work (0.75x, 1x, 1.25x, 1.5x)
+  Closing and re-opening the chapter resumes from last frame
+
+PHASE 2 IS COMPLETE WHEN:
+  ✓ Chapters auto-narrate frame by frame
+  ✓ Playback controls work
+  ✓ Progress is saved when audio ends
+  ✓ Admin can preview TTS audio in the frame editor
+
+
+════════════════════════════════════════════════════════════════
+PHASE 3 — LLM QUESTION ENGINE  (Target: weeks 9–12)
+════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 1 — LLM BACKEND                                        │
+└─────────────────────────────────────────────────────────────┘
+
+COPY FILES:
+  - api/src/services/llm.service.ts
+  - api/src/services/iq.service.ts
+
+Un-comment triggerQuestion() in api/src/routes/student/progress.ts.
+
+TEST:
+  Listen to 3 frames (N=3 default)
+  Check DB: llm_questions table should have a new row
+  The question JSON should have valid A/B/C/D options
+
+POST /student/questions/:id/respond  { "selectedOption": "A" }
+  → Should return { isCorrect, iqDelta, newScore }
+  → Check student_iq_scores table: score should have changed
+  → Check student_question_responses: response logged
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 2 — QUESTION UI                                        │
+└─────────────────────────────────────────────────────────────┘
+
+COPY FILES:
+  - apps/web/src/hooks/usePlayer.ts         (useAnswerQuestion)
+  - apps/web/src/components/student/QuestionOverlay.tsx
+
+The question trigger flow works like this:
+  1. POST /student/progress/frame returns shouldTriggerQuestion: true
+  2. Frontend polls GET /student/chapters/:id (or use WebSocket in Phase 4)
+     to detect a new question has been saved for this student
+  3. playerStore.showQuestion(question) is called
+  4. QuestionOverlay renders
+  5. Student taps an option
+  6. useAnswerQuestion() POSTs the answer, gets isCorrect + iqDelta back
+  7. Overlay shows result, "Continue" button calls dismissQuestion()
+  8. Audio resumes from the next frame
+
+NOTE: The simplest polling approach for Phase 3 is to check for a
+pending question after each frame completes. You can upgrade to
+WebSockets in Phase 4 if needed.
+
+Update SubjectsPage to show IQ score from progress.store.
+
+PHASE 3 IS COMPLETE WHEN:
+  ✓ Questions appear after every N frames
+  ✓ Correct/incorrect feedback is shown
+  ✓ IQ score updates and is visible on the subject card
+  ✓ Audio resumes after question is dismissed
+
+
+════════════════════════════════════════════════════════════════
+PHASE 4 — ANALYTICS + POLISH  (Target: weeks 13–16)
+════════════════════════════════════════════════════════════════
+
+  - Fill in AnalyticsPage charts (use Recharts or Chart.js)
+  - Fill in ProgressPage for students (streak, accuracy, IQ trend)
+  - Add sequential chapter unlock logic
+  - Add rate limiting (express-rate-limit)
+  - Add error boundaries in React
+  - Redis caching for analytics queries
+  - PWA manifest + service worker
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 4 — CODING RULES TO FOLLOW
+────────────────────────────────────────────────────────────────────────────────
+
+1. COPY FILES FROM project_structure/ — do not rewrite from scratch.
+   The skeletons already have the correct types and logic. Your job is to
+   wire them together and fill in any TODO comments.
+
+2. ALWAYS start the database before the API.
+   docker-compose up -d     (run this first every dev session)
+
+3. ALWAYS run prisma generate after any schema change.
+   npx prisma migrate dev --name <describe_change>
+   npx prisma generate
+
+4. TEST each API endpoint with Postman before building the UI for it.
+   UI bugs are harder to debug. Confirm the API works first.
+
+5. NEVER block the audio loop.
+   LLM and TTS calls must be async/non-blocking.
+   If generateQuestion() returns null → skip the question silently.
+   If audio fails to load → advance to next frame automatically.
+
+6. NEVER expose JWT_ACCESS_SECRET or AWS keys in the frontend.
+   All secrets live in api/.env only.
+   VITE_* variables are public — only put the API base URL there.
+
+7. ENV VARS checklist before first run:
+   □ DATABASE_URL          (from docker-compose)
+   □ REDIS_URL             (from docker-compose)
+   □ JWT_ACCESS_SECRET     (generate: openssl rand -hex 32)
+   □ JWT_REFRESH_SECRET    (generate: openssl rand -hex 32)
+   □ ANTHROPIC_API_KEY     (from console.anthropic.com)
+   □ ELEVENLABS_API_KEY    (from elevenlabs.io — skip in Phase 1)
+   □ AWS_*                 (from AWS console — skip in Phase 1)
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 5 — DEPENDENCY BETWEEN FILES (Read before coding)
+────────────────────────────────────────────────────────────────────────────────
+
+This is the exact import dependency chain. If a file fails to compile,
+check that all its dependencies are in place first.
+
+  shared/types/index.ts
+    ↑ used by everything
+
+  api/src/lib/prisma.ts
+    ↑ used by all route files and jobs/tts.job.ts
+
+  api/src/middleware/auth.ts
+    ↑ used by api/src/middleware/rbac.ts
+    ↑ used by all route files
+
+  api/src/services/iq.service.ts
+    ↑ used by api/src/routes/student/progress.ts
+
+  api/src/services/llm.service.ts
+    ↑ used by api/src/routes/student/progress.ts
+
+  api/src/services/tts.service.ts + storage.service.ts
+    ↑ used by api/src/jobs/tts.job.ts
+
+  api/src/jobs/tts.job.ts
+    ↑ used by api/src/routes/admin/courses.ts
+
+  apps/web/src/services/api.service.ts
+    ↑ used by all stores and hooks
+
+  apps/web/src/stores/auth.store.ts
+    ↑ used by Layout.tsx, LoginPage.tsx, ProtectedRoute in App.tsx
+
+  apps/web/src/stores/player.store.ts
+    ↑ used by FramePlayer, AudioController, QuestionOverlay, ListenPage
+
+  apps/web/src/hooks/useAudio.ts
+    ↑ used by ListenPage.tsx
+
+  apps/web/src/hooks/usePlayer.ts
+    ↑ used by QuestionOverlay.tsx
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 6 — KNOWN GAPS TO FILL
+────────────────────────────────────────────────────────────────────────────────
+
+These are TODO items already marked in the skeleton files.
+Address them before moving to the next phase.
+
+PHASE 1 GAPS:
+  □ Add GET /admin/subjects/:id endpoint (needed by SubjectDetailPage to get
+    subject name and settings without a second class-list call)
+  □ Add input validation (Zod) to all POST/PUT route handlers
+    Currently bodies are used directly from req.body — unsafe in production
+  □ Add pagination to GET /admin/students (will grow large)
+
+PHASE 2 GAPS:
+  □ tts.service.ts: verify ElevenLabs SDK stream-to-buffer works correctly
+    with the specific SDK version you install. The stream API varies.
+  □ Add frame duration_seconds capture from the audio buffer length
+  □ Handle S3 cleanup when a frame is deleted (storage.service.deleteFile)
+
+PHASE 3 GAPS:
+  □ progress.ts: triggerQuestion() currently uses fire-and-forget.
+    The frontend needs a polling mechanism (or WebSocket) to know when
+    the question is ready and should be shown to the student.
+    Simplest approach: after each frame, frontend calls
+    GET /student/chapters/:id/pending-question?afterFrame=N
+    (add this endpoint to student/chapters.ts)
+  □ StudentDetailPage.tsx: the subject access dropdown fetches all subjects
+    by looping through all classes. Add GET /admin/subjects (flat) endpoint.
+
+PHASE 4 GAPS:
+  □ Sequential chapter unlock: after chapter complete, check if next chapter
+    should be unlocked based on subject.sequentialChapters
+  □ ProgressPage: implement streak tracking (consecutive days with
+    at least one frame listened — query student_frame_progress by date)
+  □ Redis caching for analytics (currently queries DB on every request)
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 7 — QUICK REFERENCE: KEY COMMANDS
+────────────────────────────────────────────────────────────────────────────────
+
+  # Start infrastructure
+  docker-compose up -d
+
+  # Run API in dev mode
+  cd api && npx nodemon src/server.ts
+
+  # Run TTS worker (separate terminal, Phase 2+)
+  cd api && npx ts-node src/jobs/tts.job.ts
+
+  # Run web dev server
+  cd apps/web && npm run dev
+
+  # Prisma: apply schema changes
+  npx prisma migrate dev --name <change_description>
+
+  # Prisma: open DB browser
+  npx prisma studio
+
+  # Prisma: re-generate client after schema edit
+  npx prisma generate
+
+  # Seed first admin user
+  cd api && npx ts-node src/seed.ts
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 8 — WHAT GOOD PROGRESS LOOKS LIKE (MILESTONES)
+────────────────────────────────────────────────────────────────────────────────
+
+  Week 1:  docker-compose up, Prisma migrate, login API works
+  Week 2:  Admin can create a full course (class → subject → chapter → frames)
+  Week 3:  Student can log in, see their subjects, open a chapter and see text
+  Week 4:  Admin can create students, assign subjects — Phase 1 complete
+  Week 5:  TTS job runs, audio file appears in S3 after saving a frame
+  Week 6:  Student opens chapter, audio plays automatically
+  Week 7:  Playback controls work, progress saved on each frame end
+  Week 8:  Admin TTS preview works — Phase 2 complete
+  Week 9:  LLM question saved to DB after every N frames
+  Week 10: Student sees question overlay, can answer it
+  Week 11: IQ score updates correctly, feedback message shown
+  Week 12: Full listen → question → answer → continue loop — Phase 3 complete
+
+
+================================================================================
+END OF FILE
+================================================================================
