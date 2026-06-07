@@ -1,0 +1,106 @@
+================================================================================
+  STEP 15 — AUDIO PLAYBACK UI (Howler.js Player)
+  Phase 2 — Audio Engine
+================================================================================
+
+GOAL
+────
+Replace the Phase 1 text-only ListenPage with the full audio-driven listening
+experience. Chapters auto-play frame by frame, the student can control speed,
+and progress is tracked when each frame's audio ends naturally.
+
+PREREQUISITES
+─────────────
+- Step 14 (TTS Service and S3) complete
+- At least one chapter with 3 frames where all frames have audioStatus = "ready"
+  and a valid audioUrl
+
+PROCESS
+───────
+1. Copy apps/web/src/stores/player.store.ts from project_structure/
+   - Manages Howl instance lifecycle
+   - loadChapter(chapter, frames, startIndex) — replaces any existing Howl
+   - play() — creates a new Howl from the current frame's audioUrl and plays it
+   - pause() — pauses the current Howl
+   - goToFrame(index) — unloads current Howl and sets new index (does not autoplay)
+   - markFrameComplete() — advances to next frame and auto-plays after 300ms
+   - setPlaybackRate(rate) — changes speed on the active Howl
+   - showQuestion(question) — pauses audio and sets questionPhase = true
+   - dismissQuestion() — clears question and resumes audio
+
+2. Copy apps/web/src/hooks/useAudio.ts from project_structure/
+   - useChapterLoader(chapterId) fetches the chapter from the API on mount,
+     calls loadChapter() with the resume index, then calls play() after 500ms
+   - Cleanup on unmount calls reset() to unload Howl and clear store
+
+3. Copy the five student components from project_structure/
+   - ChapterHeader.tsx — title + animated progress bar at top
+   - FramePlayer.tsx — image (if present), large frame text, progress dots,
+     audio controller all stacked vertically
+   - FrameProgressDots.tsx — one dot per frame, filled for listened frames
+   - AudioController.tsx — Play/Pause button, Prev/Next buttons,
+     four speed buttons (0.75x, 1x, 1.25x, 1.5x)
+   - ChapterCompleteModal.tsx — shown when all frames have been listened to,
+     has "Next Chapter" or "Back to Subject" button
+
+4. Rewrite ListenPage.tsx to use the full player
+   - Copy apps/web/src/pages/student/ListenPage.tsx from project_structure/
+   - It should: call useChapterLoader, render ChapterHeader, FramePlayer,
+     and conditionally render ChapterCompleteModal when all frames are done
+
+5. Wire markFrameComplete to also call POST /student/progress/frame
+   - Currently markFrameComplete() in player.store just advances the frame
+   - It needs to also call the API to record the listen event
+   - The cleanest approach: in useAudio.ts, have the Howl onend callback
+     call both markFrameComplete() and POST /student/progress/frame
+
+6. Wire playback speed persistence
+   - Store playbackRate in localStorage so it survives page reloads
+   - On player store init, read from localStorage and set as default
+
+7. Test the complete audio experience
+
+   Test A — Auto-play on open
+   - Open a chapter — audio should start within 2 seconds, no button press
+
+   Test B — Frame advance
+   - Audio plays frame 1, then automatically plays frame 2, then frame 3
+
+   Test C — Speed controls
+   - Change speed to 1.5x mid-playback — audio speed should change immediately
+
+   Test D — Pause and resume
+   - Pause during frame 2, navigate away, come back
+   - Should resume from frame 2 (from lastFrameIndex in DB)
+
+   Test E — Progress dots
+   - Each completed frame's dot should fill as audio ends
+
+   Test F — Chapter complete
+   - Listen to all frames — ChapterCompleteModal should appear
+
+FILES FROM project_structure/
+──────────────────────────────
+  apps/web/src/stores/player.store.ts                       → copy as-is
+  apps/web/src/hooks/useAudio.ts                            → copy as-is
+  apps/web/src/components/student/ChapterHeader.tsx         → copy as-is
+  apps/web/src/components/student/FramePlayer.tsx           → copy as-is
+  apps/web/src/components/student/FrameProgressDots.tsx     → copy as-is
+  apps/web/src/components/student/AudioController.tsx       → copy as-is
+  apps/web/src/components/student/ChapterCompleteModal.tsx  → copy as-is
+  apps/web/src/pages/student/ListenPage.tsx                 → copy, wire progress
+
+DONE WHEN
+─────────
+  [ ] Chapter opens and first frame audio plays within 2 seconds
+  [ ] Audio advances to next frame automatically after each frame ends
+  [ ] Pause/play button works during playback
+  [ ] Speed changes apply immediately to current playback
+  [ ] Progress dots fill as each frame ends
+  [ ] Reopening a chapter resumes from the last listened frame
+  [ ] ChapterCompleteModal appears after the last frame
+
+NEXT STEP
+─────────
+  Step 16 — Admin TTS Preview
+================================================================================

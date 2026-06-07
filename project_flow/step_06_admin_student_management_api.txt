@@ -1,0 +1,83 @@
+================================================================================
+  STEP 06 — ADMIN STUDENT MANAGEMENT API
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Build the API endpoints that let an admin create student accounts, grant and
+revoke subject access, and view a student's progress. After this step, the
+admin can control exactly which students have access to which subjects.
+
+PREREQUISITES
+─────────────
+- Step 05 (Admin Course CRUD API) complete
+- At least one subject exists in the database
+
+PROCESS
+───────
+1. Copy api/src/routes/admin/students.ts from project_structure/
+
+2. Mount the admin students router in api/src/app.ts
+   - Prefix: /api/v1/admin/students
+   - Same role guard as courses: verifyJWT + requireRole(['admin', 'super_admin'])
+
+3. Copy api/src/routes/admin/analytics.ts from project_structure/
+
+4. Mount the admin analytics router in api/src/app.ts
+   - Prefix: /api/v1/admin/analytics
+   - Same role guard
+
+5. Add Zod input validation to POST /admin/students (name, email, password)
+   and POST /admin/students/:id/access (subjectId)
+
+6. Test all endpoints using Postman with admin token
+
+   Test A — Create a student account
+   - POST /api/v1/admin/students
+   - Body: name, email, temporary password
+   - Expected: 201 with the new student record (no password hash in response)
+
+   Test B — List students
+   - GET /api/v1/admin/students
+   - Expected: array with the new student
+
+   Test C — Grant subject access
+   - POST /api/v1/admin/students/:studentId/access
+   - Body: subjectId (use the one created in Step 05)
+   - Expected: 201 with the access record
+
+   Test D — View student progress
+   - GET /api/v1/admin/students/:studentId/progress
+   - Expected: empty progress array (student has not listened yet)
+
+   Test E — Revoke subject access
+   - DELETE /api/v1/admin/students/:studentId/access/:subjectId
+   - Expected: 204 No Content
+
+   Test F — Re-grant access (confirm upsert works)
+   - POST /api/v1/admin/students/:studentId/access again
+   - Expected: 201, no duplicate row error
+
+   Test G — Analytics overview
+   - GET /api/v1/admin/analytics/overview
+   - Expected: totalStudents: 1, totalSubjects: 1, averageIqScore: 50
+
+FILES FROM project_structure/
+──────────────────────────────
+  api/src/routes/admin/students.ts   → copy to api/src/routes/admin/students.ts
+  api/src/routes/admin/analytics.ts  → copy to api/src/routes/admin/analytics.ts
+
+DONE WHEN
+─────────
+  [ ] POST /admin/students creates a student with hashed password
+  [ ] Student can log in using the credentials created by admin
+  [ ] POST /admin/students/:id/access grants subject access
+  [ ] DELETE /admin/students/:id/access/:subjectId revokes it
+  [ ] GET /admin/students/:id/progress returns progress data
+  [ ] GET /admin/analytics/overview returns counts
+
+NEXT STEP
+─────────
+  Step 07 — Student API
+================================================================================

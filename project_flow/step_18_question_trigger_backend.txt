@@ -1,0 +1,90 @@
+================================================================================
+  STEP 18 — QUESTION TRIGGER BACKEND
+  Phase 3 — LLM Question Engine
+================================================================================
+
+GOAL
+────
+Activate the LLM question trigger in the progress route so that every N frames
+a question is generated and persisted in the database. After this step,
+checking the llm_questions table after a student listens to N frames shows a
+new row with a valid question.
+
+PREREQUISITES
+─────────────
+- Step 17 (LLM Service and IQ Logic) complete
+- generateQuestion() confirmed working
+- A student with access to a subject that has at least 6 frames
+  (to trigger 2 questions during testing)
+
+PROCESS
+───────
+1. Open api/src/routes/student/progress.ts
+
+2. Un-comment the triggerQuestion() call in the POST /student/progress/frame handler
+   - Remove the comment "LLM: re-enable in Phase 3 Step 19" added in Step 07
+
+3. Review what triggerQuestion() does
+   - Fetches the student's current IQ score for the subject
+   - Fetches the last N frames (where N = subject.questionEveryNFrames)
+   - Calls generateQuestion() with iqScore, chapterTitle, recentFrames
+   - If generateQuestion() returns null, logs and returns silently
+   - Otherwise inserts a row into llm_questions table
+
+4. Verify the trigger condition logic
+   - A question fires when (frame.orderIndex + 1) % subject.questionEveryNFrames === 0
+   - For N=3: fires after frame index 2 (3rd frame), 5 (6th frame), etc.
+   - Confirm this is correct (off-by-one errors are common here)
+   - Test with N=1 in a test subject to make triggering easier to observe
+
+5. Add the pending-question polling endpoint
+   - This is the known gap from file.txt (Section 6, Phase 3 Gaps)
+   - Add GET /student/chapters/:chapterId/pending-question to chapters.ts
+   - This returns the most recent llm_question for this student + chapter
+     where no response exists yet in student_question_responses
+   - Returns null if no pending question exists
+   - The frontend will poll this after each frame to check for questions
+
+6. Test the question trigger end-to-end in Postman
+
+   Setup: ensure the test subject has questionEveryNFrames = 3
+
+   Test A — Listen to frames 1 and 2 (no trigger yet)
+   - POST /student/progress/frame for frame 1 → shouldTriggerQuestion: false
+   - POST /student/progress/frame for frame 2 → shouldTriggerQuestion: false
+   - GET /student/chapters/:id/pending-question → should return null
+
+   Test B — Listen to frame 3 (trigger fires)
+   - POST /student/progress/frame for frame 3 → shouldTriggerQuestion: true
+   - Wait 2–3 seconds (LLM call is async)
+   - GET /student/chapters/:id/pending-question → should return a question
+   - Inspect the question: confirm it has 4 options and a correct answer
+
+   Test C — Answer the question
+   - POST /student/questions/:questionId/respond
+     Body: { "selectedOption": "A" } (or whichever the correct answer is)
+   - Expected: { isCorrect: true/false, iqDelta: +4 or -3, newScore: 54 or 47 }
+   - Check student_iq_scores table — score should reflect the delta
+
+   Test D — Confirm no more pending questions
+   - GET /student/chapters/:id/pending-question → should return null
+     (question was answered, no longer pending)
+
+FILES FROM project_structure/
+──────────────────────────────
+  api/src/routes/student/progress.ts   → already in place, un-comment trigger
+  api/src/routes/student/chapters.ts   → add pending-question endpoint
+
+DONE WHEN
+─────────
+  [ ] Listening to exactly N frames creates a row in llm_questions
+  [ ] The question JSON in the DB has 4 valid options and a correctOption
+  [ ] GET /student/chapters/:id/pending-question returns the question
+  [ ] POST /student/questions/:id/respond updates student_iq_scores
+  [ ] Answered question no longer appears in pending-question endpoint
+  [ ] If LLM fails, progress continues with no error returned to student
+
+NEXT STEP
+─────────
+  Step 19 — Question Overlay UI
+================================================================================

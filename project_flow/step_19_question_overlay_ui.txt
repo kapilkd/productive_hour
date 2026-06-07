@@ -1,0 +1,87 @@
+================================================================================
+  STEP 19 — QUESTION OVERLAY UI
+  Phase 3 — LLM Question Engine
+================================================================================
+
+GOAL
+────
+Show the adaptive question to the student in the browser after every N frames.
+Audio pauses, the question fades in, the student taps an option, feedback and
+IQ delta are shown, and audio resumes after they tap Continue.
+
+PREREQUISITES
+─────────────
+- Step 18 (Question Trigger Backend) complete
+- pending-question endpoint returns a valid question after N frames
+
+PROCESS
+───────
+1. Copy apps/web/src/hooks/usePlayer.ts from project_structure/
+   - useAnswerQuestion() calls POST /student/questions/:id/respond
+   - Returns { isCorrect, iqDelta, newScore }
+
+2. Copy apps/web/src/components/student/QuestionOverlay.tsx from project_structure/
+   - Renders as a full-screen overlay (fixed, z-50)
+   - Shows question text + 4 option buttons (A B C D)
+   - On option tap: disables all buttons, calls useAnswerQuestion()
+   - Correct: option turns green, shows IQ delta badge
+   - Incorrect: selected option turns red, correct option turns green
+   - Shows "Continue →" button after result is received
+   - Clicking Continue calls playerStore.dismissQuestion() which resumes audio
+
+3. Add a polling loop to ListenPage (or inside useAudio.ts)
+   - After POST /student/progress/frame returns, if shouldTriggerQuestion is true:
+     - Poll GET /student/chapters/:id/pending-question every 2 seconds
+     - When a question is returned, call playerStore.showQuestion(question)
+     - Stop polling once the question is found
+   - If no question appears within 15 seconds, stop polling and continue
+     (guards against LLM timeouts blocking the student)
+
+4. Update ListenPage.tsx to render QuestionOverlay when questionPhase is true
+   - Conditionally render: {questionPhase && <QuestionOverlay />}
+
+5. Test the full interactive learning loop in the browser
+
+   Test A — Question appears after N frames
+   - Open a chapter, listen to frame 1 and 2 (progress dots fill)
+   - After frame 3 ends — audio should pause, question overlay fades in
+   - Question text and four options should be readable
+
+   Test B — Correct answer
+   - Tap the correct option
+   - Option turns green
+   - IQ delta shows as "+4" (or appropriate value for medium difficulty)
+   - "Continue →" button appears
+
+   Test C — Incorrect answer
+   - Answer incorrectly on the next question
+   - Selected option turns red, correct option turns green
+   - IQ delta shows as "-3"
+
+   Test D — Continue resumes audio
+   - Tap Continue — overlay fades out
+   - Audio of the next frame begins automatically
+
+   Test E — IQ score on subjects page
+   - After answering 2–3 questions, go back to the subjects page
+   - The IQ badge on the subject card should show the updated score
+
+FILES FROM project_structure/
+──────────────────────────────
+  apps/web/src/hooks/usePlayer.ts                          → copy as-is
+  apps/web/src/components/student/QuestionOverlay.tsx      → copy as-is
+
+DONE WHEN
+─────────
+  [ ] Question overlay appears after N frames, audio pauses automatically
+  [ ] Correct answer turns the button green
+  [ ] Incorrect answer turns selected button red, shows correct in green
+  [ ] IQ delta is displayed (+/- value)
+  [ ] Tapping Continue resumes audio from the next frame
+  [ ] IQ score on the subjects page updates after answering questions
+  [ ] If LLM fails, audio continues without a question appearing
+
+NEXT STEP
+─────────
+  Step 20 — IQ Score Display and Subject Settings
+================================================================================

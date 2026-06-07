@@ -1,0 +1,78 @@
+================================================================================
+  STEP 12 — ADMIN STUDENT MANAGEMENT UI
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Build the admin student management screens: the student list with a create
+form, and the student detail page where the admin can grant or revoke subject
+access and view the student's chapter progress and IQ scores.
+
+PREREQUISITES
+─────────────
+- Step 11 (Admin Course Builder UI) complete
+- At least one subject exists in the database
+
+PROCESS
+───────
+1. Copy apps/web/src/components/admin/StudentTable.tsx from project_structure/
+   - Renders a table fetched from GET /admin/students
+   - Columns: Name, Email, Status (active/inactive badge), Actions (Manage →)
+   - Clicking Manage navigates to /admin/students/:studentId
+
+2. Copy apps/web/src/pages/admin/StudentsPage.tsx from project_structure/
+   - Shows StudentTable at the bottom
+   - "New Student" button toggles an inline form at the top
+   - Form fields: name, email, temporary password (min 8 chars)
+   - Form submits to POST /admin/students
+   - After creation, StudentTable refreshes via a key prop change
+   - Register this route in App.tsx at /admin/students
+
+3. Copy apps/web/src/pages/admin/StudentDetailPage.tsx from project_structure/
+   - Shows the student's name, email, and active status
+   - IQ Scores section: one row per subject with a progress bar (0–100)
+   - Subject Access section:
+       - Dropdown to select a subject and a "Grant" button
+       - List of currently assigned subjects with a "Revoke" button per row
+   - Chapter Progress section: table with Subject | Chapter | Status columns
+   - Register this route in App.tsx at /admin/students/:studentId
+
+4. Fix the known gap in StudentDetailPage
+   - The current skeleton fetches all subjects by looping through all classes
+   - This is inefficient and can be replaced now by using the
+     GET /admin/subjects (flat list) endpoint — which you added in Step 05
+   - Update the subject dropdown fetch to use that single endpoint
+
+5. Test the full student management flow in the browser
+
+   Flow to test:
+   - Log in as admin → go to Students
+   - Click "New Student" → create a student with name, email, password
+   - Confirm the student appears in the table with "Active" badge
+   - Click Manage → on detail page, grant access to the Science subject
+   - Confirm the subject appears in the Subject Access list
+   - Click Revoke → subject should disappear from the list
+   - Re-grant access (needed for the next step)
+   - Log out and log in as the student — should see the subject
+
+FILES FROM project_structure/
+──────────────────────────────
+  apps/web/src/components/admin/StudentTable.tsx    → copy as-is
+  apps/web/src/pages/admin/StudentsPage.tsx          → copy as-is
+  apps/web/src/pages/admin/StudentDetailPage.tsx     → copy, fix subject fetch
+
+DONE WHEN
+─────────
+  [ ] Student list shows all students with active/inactive badge
+  [ ] Create student form works, new student appears in table immediately
+  [ ] Student detail page loads with correct name and email
+  [ ] Grant access adds subject to the list
+  [ ] Revoke access removes subject from the list
+  [ ] Chapter progress table is visible (empty at first — that is correct)
+  [ ] IQ score shows 50 (default — no questions answered yet)
+
+NEXT STEP
+─────────
+  Step 13 — Student Web — Phase 1 Screens
+================================================================================

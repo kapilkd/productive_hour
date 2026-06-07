@@ -1,0 +1,73 @@
+================================================================================
+  STEP 09 — WEB API SERVICE AND AUTH STORE
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Set up the Axios HTTP client with the auto-refresh interceptor, then build the
+auth Zustand store so any web page can call the API and sessions persist across
+browser reloads. This is the foundation every other web module depends on.
+
+PREREQUISITES
+─────────────
+- Step 07 (Student API) complete
+- API is running on localhost:4000
+- Vite dev server is running on localhost:5173
+
+PROCESS
+───────
+1. Create apps/web/.env
+   - Add: VITE_API_BASE_URL=http://localhost:4000/api/v1
+   - Add: VITE_ENV=development
+
+2. Copy apps/web/src/services/api.service.ts from project_structure/
+   - This creates an Axios instance pointed at VITE_API_BASE_URL
+   - It has a response interceptor that catches 401 errors, silently
+     calls the refresh endpoint, then retries the original request once
+   - On second 401, it calls logout() and redirects to login
+
+3. Copy apps/web/src/stores/auth.store.ts from project_structure/
+   - Uses Zustand with the persist middleware
+   - Stores user and accessToken in localStorage
+   - On rehydration, restores the Authorization header on the Axios instance
+   - login() calls POST /auth/login, updates store, sets header
+   - logout() calls POST /auth/logout, clears store and header
+   - refreshToken() calls POST /auth/refresh, updates token
+
+4. Copy apps/web/src/types/index.ts from project_structure/
+   - Re-exports everything from shared/types
+   - This is the single import point for all types in the web app
+
+5. Manual verification (no UI yet — use browser console)
+   - Open the browser console on http://localhost:5173
+   - Import the store and call login() with admin credentials
+   - Confirm accessToken appears in localStorage (under "auth-store")
+   - Confirm the Axios Authorization header is set
+   - Call logout() and confirm localStorage is cleared
+
+6. Test the interceptor behaviour
+   - Manually set a fake/expired accessToken in localStorage
+   - Make a request (any GET) — the interceptor should transparently
+     refresh the token and retry, then succeed
+   - If the refresh cookie is also expired, user should be logged out
+
+FILES FROM project_structure/
+──────────────────────────────
+  apps/web/src/services/api.service.ts  → copy as-is
+  apps/web/src/stores/auth.store.ts     → copy as-is
+  apps/web/src/types/index.ts           → copy as-is
+
+DONE WHEN
+─────────
+  [ ] VITE_API_BASE_URL is configured in apps/web/.env
+  [ ] Axios instance correctly calls the API base URL
+  [ ] login() stores user + token and sets Authorization header
+  [ ] logout() clears localStorage and the header
+  [ ] Page reload restores the token and header from localStorage
+  [ ] 401 interceptor refreshes the token and retries silently
+
+NEXT STEP
+─────────
+  Step 10 — Web Routing and Layouts
+================================================================================

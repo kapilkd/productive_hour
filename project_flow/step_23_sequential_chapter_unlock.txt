@@ -1,0 +1,90 @@
+================================================================================
+  STEP 23 — SEQUENTIAL CHAPTER UNLOCK
+  Phase 4 — Analytics and Polish
+================================================================================
+
+GOAL
+────
+Enforce the rule that a student cannot open chapter N+1 until chapter N is
+completed — when sequentialChapters is true on the subject. The chapter list
+should visually communicate which chapters are locked.
+
+PREREQUISITES
+─────────────
+- Step 22 (Student Progress Page) complete
+- A subject has at least 3 chapters, all frames have audio
+
+PROCESS
+───────
+1. Verify the sequential unlock logic in the backend
+   - GET /student/subjects/:id/chapters already returns chapter list with
+     progress status per chapter
+   - Add a "locked" boolean to each chapter in the response:
+       A chapter is locked if:
+         a. sequentialChapters is true on the subject
+         b. The previous chapter's status is NOT 'completed'
+         c. The chapter is not the first chapter
+   - If sequentialChapters is false, all chapters return locked: false
+
+2. Update ChapterListPage.tsx to show locked state
+   - If a chapter's locked field is true, render a lock icon on its card
+   - Disable the click handler — clicking a locked chapter shows
+     a tooltip: "Complete the previous chapter first"
+   - Use a visual treatment (grey out the card, 50% opacity) to signal locked
+
+3. Guard the chapter endpoint too
+   - GET /student/chapters/:id should return 403 if the chapter is locked
+     for the requesting student
+   - This prevents direct URL navigation to bypass the lock
+   - Check: is previous chapter completed? If not, return
+     { error: 'Chapter locked. Complete the previous chapter first.' }
+
+4. Handle the chapter-complete state
+   - When the last frame of a chapter is marked listened:
+     - Update student_chapter_progress status to 'completed'
+     - This unlock logic is already in POST /student/progress/frame
+     - Confirm it triggers correctly (check the progress table after
+       listening to all frames of chapter 1)
+   - After completing a chapter, the next chapter should immediately
+     unlock on the chapters list page
+
+5. Test the sequential unlock
+
+   Test A — Chapter 2 is locked initially
+   - Log in as a student, open a subject
+   - Chapter 1 should be open (no lock icon)
+   - Chapter 2 should have a lock icon and be unclickable
+
+   Test B — Completing chapter 1 unlocks chapter 2
+   - Listen to all frames in chapter 1
+   - Navigate back to the chapter list
+   - Chapter 2 lock icon should be gone
+   - Clicking chapter 2 should work
+
+   Test C — Direct URL blocked
+   - Get the chapter 2 URL
+   - Before completing chapter 1, navigate directly to that URL
+   - Should redirect to /student/subjects or show a locked error message
+
+   Test D — Free navigation subject
+   - Set sequentialChapters = false on a test subject
+   - All chapters should be clickable from the start
+   - No lock icons visible
+
+FILES FROM project_structure/
+──────────────────────────────
+  api/src/routes/student/chapters.ts                → add lock logic to chapter list response
+  apps/web/src/pages/student/ChapterListPage.tsx    → already copied, add locked UI
+
+DONE WHEN
+─────────
+  [ ] Locked chapters show a lock icon and cannot be clicked
+  [ ] Completing the previous chapter immediately unlocks the next
+  [ ] Direct URL navigation to a locked chapter returns 403
+  [ ] Subjects with sequentialChapters = false show all chapters open
+  [ ] Chapter complete state saves correctly to student_chapter_progress
+
+NEXT STEP
+─────────
+  Step 24 — Error Handling and Resilience
+================================================================================

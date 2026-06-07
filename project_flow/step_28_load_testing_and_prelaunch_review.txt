@@ -1,0 +1,119 @@
+================================================================================
+  STEP 28 — LOAD TESTING AND PRE-LAUNCH REVIEW
+  Phase 4 — Analytics and Polish
+================================================================================
+
+GOAL
+────
+Verify the platform handles 100 concurrent students, fix any performance
+bottlenecks, review all known open questions from CLAUDE.md, and confirm
+the platform is ready for real students.
+
+PREREQUISITES
+─────────────
+- Step 27 (PWA and Deployment) complete
+- Production environment is live
+- Test data: at least 5 classes, 20 subjects, 100 chapters, 500+ frames
+
+PROCESS
+───────
+1. Load test the API with k6 (or Artillery)
+   - Install: npm install -g k6
+   - Write a test script that simulates 100 virtual users each doing:
+       a. Login
+       b. Fetch subjects list
+       c. Open a chapter
+       d. Mark 5 frames as listened (sequential)
+       e. Answer 1 question
+   - Run for 3 minutes and observe results
+   - Target: 95th percentile response time < 500ms for all endpoints
+   - Monitor Railway/Render CPU and memory during the run
+
+2. Identify and fix slow queries
+   - During the load test, watch the PostgreSQL query logs
+   - Add Prisma indexes if needed:
+       student_frame_progress (studentId, frameId) — unique index exists
+       student_chapter_progress (studentId, chapterId) — unique index exists
+       student_iq_scores (studentId, subjectId) — unique index exists
+   - If the analytics overview query is slow, verify the Redis cache is
+     working and the 5-minute TTL is configured correctly
+
+3. Test TTS queue under load
+   - Create 50 frames simultaneously as admin (or via a test script)
+   - Observe the BullMQ dashboard (if installed) or the queue processing logs
+   - All 50 frames should reach audio_status = 'ready' within a reasonable time
+   - Confirm no jobs are stuck in the 'generating' state
+
+4. Review all open questions from CLAUDE.md section 19
+   - Question 1 (Hindi narration): decide before launch — ElevenLabs
+     multilingual_v2 supports Hindi, just need a Hindi voice ID
+   - Question 2 (Frame skip): decide and configure per subject
+   - Question 3 (Voice answers): tap-only is implemented — voice is Phase 5
+   - Question 4 (Multi-tenant): single school for MVP, revisit after launch
+   - Question 5 (Pricing): not relevant to technical build
+   - Question 6 (Manual audio upload): add to admin frame editor if needed
+   - Question 7 (IQ reset): add an "Reset IQ" button on StudentDetailPage
+   - Question 8 (Offline mode): PWA cache is implemented, full offline is Phase 5
+
+5. Admin onboarding walkthrough
+   - Have someone unfamiliar with the system log in as admin and try to:
+       a. Create a class and subject from scratch
+       b. Add 3 chapters with 3 frames each
+       c. Create a student and assign them the subject
+       d. Log in as the student and listen to chapter 1
+   - Document any UI confusion or missing affordances found during this walkthrough
+
+6. Create a pre-launch checklist and verify each item
+
+   Security:
+   [ ] All .env files excluded from git
+   [ ] JWT secrets are at least 64 random characters each
+   [ ] CORS allows only the production domain
+   [ ] HTTPS enforced on API (Render/Railway provide this automatically)
+   [ ] Helmet headers active in production
+
+   Data integrity:
+   [ ] Admin cannot delete a subject that has active student enrollments
+       without a confirmation warning
+   [ ] IQ scores cannot go below 0 or above 100 (iq.service.ts clamp)
+   [ ] TTS failed frames are flagged in the admin frame list
+
+   Performance:
+   [ ] Analytics page loads in under 2 seconds with Redis cache warm
+   [ ] Chapter with 20 frames loads and starts audio within 2 seconds
+   [ ] 100 concurrent users sustained for 3 minutes without 5xx errors
+
+   Student experience:
+   [ ] Student can complete a full chapter end-to-end without any errors
+   [ ] IQ score changes are visible after answering questions
+   [ ] Chapter 2 is locked until chapter 1 is complete (if sequential)
+   [ ] Progress page shows accurate streak, IQ trend, and accuracy
+
+   Admin experience:
+   [ ] Admin can create a full course (class → subject → chapter → frames)
+   [ ] Admin can create a student and grant subject access
+   [ ] Admin can view student progress and IQ scores
+   [ ] TTS generation shows "ready" status in the frame editor
+
+FILES FROM project_structure/
+──────────────────────────────
+  No new files — this step is entirely testing, review, and verification.
+
+DONE WHEN
+─────────
+  [ ] 100 concurrent users complete the simulated scenario with no 5xx errors
+  [ ] 95th percentile response time < 500ms on all key endpoints
+  [ ] Pre-launch checklist is fully checked off
+  [ ] Open questions from CLAUDE.md section 19 have decisions recorded
+  [ ] Admin onboarding walkthrough completed without confusion
+  [ ] Phase 4 COMPLETE
+  [ ] PLATFORM READY FOR REAL STUDENTS
+
+NEXT STEP
+─────────
+  Phase 5 (Optional) — React Native Mobile App
+  This follows after the web platform is stable with real users.
+  Reference CLAUDE.md Section 17 Phase 5 for the mobile build plan.
+
+  *** PHASE 4 COMPLETE — PLATFORM IS PRODUCTION-READY ***
+================================================================================

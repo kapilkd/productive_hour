@@ -1,0 +1,79 @@
+================================================================================
+  STEP 14 — TTS SERVICE AND S3 STORAGE
+  Phase 2 — Audio Engine
+================================================================================
+
+GOAL
+────
+Connect real ElevenLabs and AWS S3 credentials so the TTS worker can generate
+actual audio files and store them. After this step, saving a frame in the admin
+panel results in a real MP3 file in S3 and the frame's audioUrl populated.
+
+PREREQUISITES
+─────────────
+- Step 13 (Student Web Phase 1) complete and Phase 1 confirmed working
+- An ElevenLabs account with API key
+- An AWS account with an S3 bucket created in ap-south-1 (or your region)
+- S3 bucket has public read permissions on audio/ prefix, or CloudFront CDN
+
+PROCESS
+───────
+1. Fill in the remaining env vars in api/.env
+   - ELEVENLABS_API_KEY
+   - ELEVENLABS_DEFAULT_VOICE_ID    (find in ElevenLabs dashboard)
+   - AWS_REGION
+   - AWS_ACCESS_KEY_ID
+   - AWS_SECRET_ACCESS_KEY
+   - S3_BUCKET_NAME
+   - S3_BASE_URL                    (bucket URL or CloudFront domain)
+
+2. Copy api/src/services/tts.service.ts from project_structure/
+   - Calls ElevenLabs client.generate() with the frame text
+   - Returns a Buffer from the audio stream
+   - Uses model_id: eleven_multilingual_v2 (supports Hindi and English)
+
+3. Verify the ElevenLabs stream-to-buffer conversion
+   - The SDK may return a ReadableStream or an async iterable depending on
+     the installed version — test with a small text string first
+   - If the stream conversion fails, check the SDK changelog and adjust
+     the streamToBuffer helper function in tts.service.ts accordingly
+
+4. Copy api/src/services/storage.service.ts from project_structure/
+   - uploadAudio(frameId, buffer) — uploads to audio/frames/{frameId}.mp3
+   - uploadImage(frameId, buffer, ext) — uploads to images/frames/{frameId}.ext
+   - deleteFile(key) — removes a file from S3
+
+5. Test each service independently before wiring them into the worker
+   - Write a one-off test script at api/src/test-tts.ts (not committed)
+   - Generate audio for a short text string (e.g. "Hello, welcome to LearnFlow")
+   - Confirm the Buffer is non-empty and is valid MP3 data
+   - Upload that Buffer to S3 via uploadAudio()
+   - Confirm the file appears in your S3 bucket
+   - Open the S3 URL in a browser — audio should play
+
+6. Replace the stub worker body in api/src/jobs/tts.job.ts
+   with the real implementation from project_structure/
+   - Now calls generateAudio() then uploadAudio()
+   - Updates frame audioStatus to "ready" and audioUrl to the S3 path
+   - On any error, sets audioStatus to "failed"
+
+FILES FROM project_structure/
+──────────────────────────────
+  api/src/services/tts.service.ts        → copy, verify stream conversion
+  api/src/services/storage.service.ts    → copy as-is
+  api/src/jobs/tts.job.ts                → copy real implementation
+                                           (replacing the Phase 1 stub)
+
+DONE WHEN
+─────────
+  [ ] ElevenLabs API key works — test script generates a valid Buffer
+  [ ] Buffer uploads to S3 — file visible in AWS console
+  [ ] S3 URL is publicly accessible (audio plays in browser)
+  [ ] Creating a frame via POST /admin/frames triggers the real TTS job
+  [ ] GET /admin/frames/:id/tts-status returns "ready" with a real audioUrl
+  [ ] audioUrl is a valid HTTPS URL pointing to S3
+
+NEXT STEP
+─────────
+  Step 15 — Audio Playback UI
+================================================================================

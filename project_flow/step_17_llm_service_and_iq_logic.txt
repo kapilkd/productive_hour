@@ -1,0 +1,75 @@
+================================================================================
+  STEP 17 — LLM SERVICE AND IQ LOGIC
+  Phase 3 — LLM Question Engine
+================================================================================
+
+GOAL
+────
+Integrate the Anthropic Claude API and the IQ scoring logic on the backend.
+After this step, the server can generate a well-formed multiple-choice question
+for any set of frame texts and any student IQ score, and the IQ delta
+calculation is tested and correct.
+
+PREREQUISITES
+─────────────
+- Step 16 (Admin TTS Preview) complete and Phase 2 confirmed working
+- An Anthropic API key (console.anthropic.com)
+
+PROCESS
+───────
+1. Add ANTHROPIC_API_KEY to api/.env
+
+2. Copy api/src/services/llm.service.ts from project_structure/
+   - generateQuestion(params) sends the prompt to Claude claude-sonnet-4-20250514
+   - System prompt describes the JSON output format
+   - User prompt includes the student's IQ score, chapter title, and
+     the last N frames of content text
+   - On JSON parse failure, retries once automatically
+   - Returns null on second failure (caller skips question gracefully)
+
+3. Copy api/src/services/iq.service.ts from project_structure/
+   - updateIqScore(current, isCorrect, difficulty) returns the new score
+   - getIqDelta(isCorrect, difficulty) returns just the +/- change
+   - Score is clamped to 0–100
+
+4. Test llm.service.ts in isolation with a test script (not committed)
+   - Pass a sample iqScore (e.g. 50), a chapter title, and 3 frame texts
+   - Confirm the response is valid JSON with question, options A–D,
+     correct, difficulty, and boost_message fields
+   - Run the test 3 times — confirm results vary and difficulty matches the IQ
+
+5. Test iq.service.ts with the expected delta values
+   - Verify correct easy answer: +2
+   - Verify incorrect easy answer: -1
+   - Verify correct medium answer: +4
+   - Verify incorrect medium answer: -3
+   - Verify correct hard answer: +6
+   - Verify incorrect hard answer: -5
+   - Verify score never goes below 0 or above 100
+
+6. Map IQ to difficulty:
+   - 0–30 → easy
+   - 31–60 → medium
+   - 61–100 → hard
+   - Confirm getDifficultyFromIq() returns the right label for edge values
+     (exactly 30, exactly 31, exactly 60, exactly 61)
+
+FILES FROM project_structure/
+──────────────────────────────
+  api/src/services/llm.service.ts    → copy as-is
+  api/src/services/iq.service.ts     → copy as-is
+
+DONE WHEN
+─────────
+  [ ] ANTHROPIC_API_KEY is set in api/.env
+  [ ] generateQuestion() returns a valid LlmQuestionPayload object
+  [ ] The question JSON has exactly 4 options labelled A B C D
+  [ ] difficulty matches the IQ score range
+  [ ] updateIqScore() delta values match the table above
+  [ ] Score never exceeds 100 or drops below 0
+  [ ] On API failure, generateQuestion() returns null (not throws)
+
+NEXT STEP
+─────────
+  Step 18 — Question Trigger Backend
+================================================================================

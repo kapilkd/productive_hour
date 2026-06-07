@@ -1,0 +1,89 @@
+================================================================================
+  STEP 20 — IQ SCORE DISPLAY AND SUBJECT SETTINGS
+  Phase 3 — LLM Question Engine
+================================================================================
+
+GOAL
+────
+Make the IQ score visible and meaningful to both the student and the admin.
+The student sees their score trend on the subjects page and per-chapter header.
+The admin can configure questionEveryNFrames per subject from the UI.
+
+PREREQUISITES
+─────────────
+- Step 19 (Question Overlay UI) complete
+- At least one student has answered several questions so the IQ score
+  has moved away from the default 50
+
+PROCESS
+───────
+1. Update SubjectsPage to show the live IQ score
+   - progressStore.fetchProgress() already fetches IQ via GET /student/iq/:subjectId
+   - Confirm the IQ badge on each subject card reflects the current DB value
+   - Add a small label "IQ" next to the score number for clarity
+
+2. Update ChapterHeader to show the student's IQ score for the chapter's subject
+   - Pass the subjectId to ChapterHeader
+   - Read the IQ score from progressStore.iqScores[subjectId]
+   - Show it as a small badge in the header (e.g. "IQ: 54")
+
+3. Add an IQ score indicator animation
+   - When the IQ score changes after answering a question, briefly animate
+     the badge (e.g. flash green for increase, red for decrease)
+   - Store the previous score in local state and compare after update
+
+4. Update admin SubjectDetailPage / ClassDetailPage to allow editing
+   questionEveryNFrames directly from the subject settings
+   - The ClassDetailPage already has a form for creating a subject with
+     questionEveryNFrames — verify it saves correctly
+   - Add an Edit button on the subject card in ClassDetailPage
+   - The edit form should show current settings and call PUT /admin/subjects/:id
+   - After saving, the student's next session uses the new N value immediately
+
+5. Let admin view average IQ per subject in StudentDetailPage
+   - The student detail page already shows IQ scores per subject
+   - Add a visual bar showing score relative to the 0–100 range
+   - This is already in the skeleton — confirm it renders correctly
+
+6. Test IQ score flow comprehensively
+
+   Test A — Score increases on correct answers
+   - Answer 3 questions correctly
+   - IQ on subjects page should be above 50 (e.g. 62 for 3 correct medium)
+
+   Test B — Score decreases on incorrect answers
+   - Answer 3 questions incorrectly
+   - IQ should drop below 50
+
+   Test C — Difficulty changes with IQ
+   - Get IQ above 61 — open a new chapter and answer a question
+   - The question's difficulty in the DB (llm_questions.difficulty) should be "hard"
+
+   Test D — Admin sees IQ in student detail
+   - Open admin → Students → click the student
+   - IQ per subject should reflect the current score
+
+   Test E — Admin changes N
+   - Change questionEveryNFrames from 3 to 2 for a subject
+   - Listen to 2 frames — a question should now appear after frame 2
+     instead of frame 3
+
+FILES FROM project_structure/
+──────────────────────────────
+  All referenced components already copied in previous steps.
+  Updates are modifications to existing files, not new files.
+
+DONE WHEN
+─────────
+  [ ] IQ badge on subjects page matches the DB value
+  [ ] IQ badge appears in chapter header during playback
+  [ ] Correct answers increase the score, incorrect answers decrease it
+  [ ] Difficulty in llm_questions matches the student's IQ range
+  [ ] Admin can change questionEveryNFrames and it takes effect immediately
+  [ ] Phase 3 COMPLETE — full adaptive learn → question → answer → boost loop
+
+NEXT STEP
+─────────
+  Step 21 — Admin Analytics Dashboard
+  *** PHASE 3 COMPLETE — confirm all Done When items before continuing ***
+================================================================================

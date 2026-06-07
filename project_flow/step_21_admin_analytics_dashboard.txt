@@ -1,0 +1,87 @@
+================================================================================
+  STEP 21 — ADMIN ANALYTICS DASHBOARD
+  Phase 4 — Analytics and Polish
+================================================================================
+
+GOAL
+────
+Fill in the admin Analytics page with real charts and data: IQ score
+distribution, chapter completion rates, drop-off frame analysis, and question
+accuracy trends. Add Redis caching so these queries do not hit the database
+on every page load.
+
+PREREQUISITES
+─────────────
+- Step 20 (IQ Score Display and Settings) complete and Phase 3 confirmed
+- Several students have used the app and generated real data
+- Redis is running
+
+PROCESS
+───────
+1. Choose a charting library
+   - Recommended: Recharts (React-native, small bundle, good TypeScript support)
+   - Install: npm install recharts @types/recharts inside apps/web/
+
+2. Expand the analytics API endpoint
+   - Open api/src/routes/admin/analytics.ts
+   - Add the following computed metrics to the GET /overview response:
+       a. IQ score distribution — bucket scores into 0–20, 21–40, 41–60,
+          61–80, 81–100 and count students in each bucket
+       b. Top 5 most completed chapters — count of completed status rows
+          per chapter in student_chapter_progress
+       c. Top 5 least completed chapters — same, sorted ascending
+       d. Recent activity — last 10 rows from student_frame_progress
+          joined with user name and frame content
+       e. Per-subject average IQ — group student_iq_scores by subjectId
+
+3. Add Redis caching to the analytics endpoint
+   - Cache the full response JSON under key "analytics:overview"
+   - TTL: 5 minutes (300 seconds)
+   - On each request: check Redis first, return cached value if present
+   - If not cached: run DB queries, cache the result, then return it
+   - Add a cache invalidation call whenever student_question_responses
+     is written (or accept slight staleness — 5 min is fine for analytics)
+
+4. Update AnalyticsPage.tsx
+   - Replace the placeholder boxes with real charts
+   - Chart 1: BarChart — IQ score distribution (buckets on X, student count on Y)
+   - Chart 2: BarChart — Chapter completion rate (chapter name on X, % on Y)
+   - Chart 3: BarChart — Drop-off frame (frame index on X, students who stopped on Y)
+     This requires a new query: count students whose lastFrameIndex < totalFrames
+     per chapter, grouped by frame index
+   - Chart 4: LineChart — Platform average IQ over the last 30 days
+     This requires a daily_stats table or aggregation of student_iq_scores
+     by updatedAt date
+   - Chart 5: Recent activity feed — list of last 10 student events
+
+5. Test the analytics page
+
+   Test A — Charts render without errors
+   - Open /admin/analytics
+   - All four charts should render with real data
+
+   Test B — Caching works
+   - Check Redis: GET analytics:overview should return JSON
+   - Reload the page — confirm the API response is fast (Redis hit)
+
+   Test C — Data accuracy
+   - Answer some questions as a student, then refresh analytics
+   - After 5 minutes (cache expiry), the new data should appear
+
+FILES FROM project_structure/
+──────────────────────────────
+  apps/web/src/pages/admin/AnalyticsPage.tsx    → already copied, fill in charts
+  api/src/routes/admin/analytics.ts              → already copied, expand endpoint
+
+DONE WHEN
+─────────
+  [ ] All four charts render with real data from the database
+  [ ] Analytics endpoint response is cached in Redis for 5 minutes
+  [ ] IQ distribution buckets are accurate
+  [ ] Chapter completion rate percentages are correct
+  [ ] Recent activity feed shows real student names and events
+
+NEXT STEP
+─────────
+  Step 22 — Student Progress Page
+================================================================================

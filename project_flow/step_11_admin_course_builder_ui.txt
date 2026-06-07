@@ -1,0 +1,95 @@
+================================================================================
+  STEP 11 — ADMIN COURSE BUILDER UI
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Build the complete admin course management interface: Classes → Class Detail
+(subjects) → Subject Detail (chapters) → Chapter Detail (frames). An admin
+must be able to create the full course hierarchy from the browser. Audio and
+TTS status are not shown yet — that comes in Phase 2.
+
+PREREQUISITES
+─────────────
+- Step 10 (Web Routing and Layouts) complete
+- Admin can log in and see the sidebar
+
+PROCESS
+───────
+1. Copy apps/web/src/pages/admin/DashboardPage.tsx from project_structure/
+   - Shows three stat cards: total students, total subjects, avg IQ score
+   - Fetches GET /admin/analytics/overview on mount
+   - Register this route in App.tsx: /admin/dashboard
+
+2. Copy apps/web/src/pages/admin/ClassesPage.tsx from project_structure/
+   - Lists all classes fetched from GET /admin/classes
+   - Has a "New Class" button that shows an inline form
+   - Form submits to POST /admin/classes
+   - After creation, new class appears in the list immediately
+   - Clicking a class navigates to /admin/classes/:classId
+   - Register this route in App.tsx
+
+3. Copy apps/web/src/pages/admin/ClassDetailPage.tsx from project_structure/
+   - Fetches subjects from GET /admin/classes/:classId/subjects
+   - "New Subject" form includes name, description, questionEveryNFrames,
+     and sequentialChapters toggle
+   - Clicking a subject navigates to /admin/subjects/:subjectId
+   - Register this route in App.tsx
+
+4. Copy apps/web/src/pages/admin/SubjectDetailPage.tsx from project_structure/
+   - Fetches chapters from GET /admin/subjects/:subjectId/chapters
+   - "New Chapter" form: title and description
+   - Chapters are listed in orderIndex order with an index number
+   - Delete button soft-deletes a chapter (calls DELETE /admin/chapters/:id)
+   - Clicking "Edit Frames →" navigates to /admin/chapters/:chapterId
+   - Register this route in App.tsx
+
+5. Copy apps/web/src/components/admin/FrameEditor.tsx from project_structure/
+   - For Phase 1, the TTS status polling is functional but will show "pending"
+     permanently since audio is a stub — that is acceptable for now
+   - The audio preview section simply will not appear (status never "ready" yet)
+
+6. Copy apps/web/src/pages/admin/ChapterDetailPage.tsx from project_structure/
+   - Fetches frames from GET /admin/chapters/:chapterId/frames
+   - Each frame displays its text content and a TTS status badge
+   - Inline edit and delete for each frame
+   - "Add Frame" button shows an inline FrameEditor form
+   - Register this route in App.tsx
+
+7. Test the full admin course-building flow in the browser
+
+   Flow to test:
+   - Log in as admin
+   - Go to Courses → create a class called "Grade 8"
+   - Click Grade 8 → create a subject called "Science"
+     with questionEveryNFrames = 3
+   - Click Science → create a chapter called "Chapter 1: Forces"
+   - Click Edit Frames → add 3 frames with different content text
+   - Confirm all three frames appear in the list
+   - Edit frame 2 — content should update in the list
+   - Delete frame 3 — it should disappear from the list
+
+FILES FROM project_structure/
+──────────────────────────────
+  apps/web/src/pages/admin/DashboardPage.tsx      → copy as-is
+  apps/web/src/pages/admin/ClassesPage.tsx         → copy as-is
+  apps/web/src/pages/admin/ClassDetailPage.tsx     → copy as-is
+  apps/web/src/pages/admin/SubjectDetailPage.tsx   → copy as-is
+  apps/web/src/pages/admin/ChapterDetailPage.tsx   → copy as-is
+  apps/web/src/components/admin/FrameEditor.tsx    → copy as-is
+
+DONE WHEN
+─────────
+  [ ] Admin can create a class and see it in the list
+  [ ] Admin can create a subject with questionEveryNFrames setting
+  [ ] Admin can create a chapter and see it ordered correctly
+  [ ] Admin can add frames with text content
+  [ ] Admin can edit and delete frames
+  [ ] Navigating back (← Back) works at every level
+  [ ] TTS status badge shows "pending" (expected at this stage)
+
+NEXT STEP
+─────────
+  Step 12 — Admin Student Management UI
+================================================================================

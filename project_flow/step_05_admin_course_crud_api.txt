@@ -1,0 +1,94 @@
+================================================================================
+  STEP 05 — ADMIN COURSE CRUD API
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Build all API endpoints that allow an admin to create and manage the full
+course hierarchy: Class → Subject → Chapter → Frame. Audio generation is
+intentionally skipped here — frames store text only. TTS will be activated
+in Phase 2.
+
+PREREQUISITES
+─────────────
+- Step 04 (Auth API) complete
+- Admin can log in and receive a valid accessToken
+
+PROCESS
+───────
+1. Copy api/src/routes/admin/courses.ts from project_structure/
+
+2. Open the file and disable the TTS trigger for now
+   - Find the two calls to enqueueTTSJob() (inside POST /frames and PUT /frames)
+   - Comment both lines out
+   - Add a comment: "TTS: re-enable in Phase 2 Step 14"
+   - This prevents a runtime error since the TTS job infrastructure is not
+     set up yet
+
+3. Mount the admin courses router in api/src/app.ts
+   - Prefix: /api/v1/admin
+   - Apply verifyJWT and requireRole(['admin', 'super_admin']) to this router
+
+4. Add input validation with Zod to every POST and PUT handler
+   - Define a Zod schema for each request body
+   - Return 400 with a descriptive message if validation fails
+   - This is the one gap from the skeleton that must be filled before testing
+
+5. Test the full course hierarchy using Postman
+   Use the admin accessToken in the Authorization header for all requests.
+
+   Test A — Create and list classes
+   - POST /api/v1/admin/classes with name and description
+   - GET  /api/v1/admin/classes — should return the created class
+
+   Test B — Create a subject inside that class
+   - POST /api/v1/admin/subjects with classId, name, questionEveryNFrames=3
+
+   Test C — Create a chapter inside that subject
+   - POST /api/v1/admin/chapters with subjectId, title, orderIndex=0
+
+   Test D — Create two frames inside that chapter
+   - POST /api/v1/admin/frames with chapterId, orderIndex, contentText
+   - Create frame 1 and frame 2
+
+   Test E — List frames
+   - GET /api/v1/admin/chapters/:id/frames
+   - Should return both frames ordered by orderIndex
+
+   Test F — Update a frame
+   - PUT /api/v1/admin/frames/:id with new contentText
+
+   Test G — Soft delete a chapter
+   - DELETE /api/v1/admin/chapters/:id
+   - GET /api/v1/admin/subjects/:id/chapters — deleted chapter should not appear
+
+   Test H — Role guard
+   - Repeat any request above using a student token
+   - Expected: 403 Forbidden
+
+6. Also add GET /admin/subjects/:id endpoint
+   - This is a known gap from file.txt (Section 6, Phase 1 Gaps)
+   - SubjectDetailPage on the frontend needs subject name + settings
+     without fetching all classes first
+   - Add this route directly to courses.ts
+
+FILES FROM project_structure/
+──────────────────────────────
+  api/src/routes/admin/courses.ts    → copy to api/src/routes/admin/courses.ts
+                                       (then comment out enqueueTTSJob calls)
+
+DONE WHEN
+─────────
+  [ ] Can create Class → Subject → Chapter → Frame via API
+  [ ] GET endpoints return correct data in the right order
+  [ ] Soft delete works (chapter disappears from listing)
+  [ ] 400 returned for missing required fields
+  [ ] 403 returned when student token used on admin routes
+  [ ] TTS calls are commented out (no runtime errors)
+  [ ] GET /admin/subjects/:id returns subject name and settings
+
+NEXT STEP
+─────────
+  Step 06 — Admin Student Management API
+================================================================================

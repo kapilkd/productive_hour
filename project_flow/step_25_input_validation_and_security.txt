@@ -1,0 +1,100 @@
+================================================================================
+  STEP 25 — INPUT VALIDATION AND SECURITY
+  Phase 4 — Analytics and Polish
+================================================================================
+
+GOAL
+────
+Harden all API endpoints with Zod validation, add rate limiting to prevent
+abuse, and lock down any remaining security gaps before production deployment.
+
+PREREQUISITES
+─────────────
+- Step 24 (Error Handling and Resilience) complete
+
+PROCESS
+───────
+1. Add Zod request validation to all admin routes
+   - Recommended pattern: create a validate(schema) middleware that
+     calls schema.parse(req.body) and returns 400 if it throws
+   - auth.ts: validate email (email format), password (min 8 chars)
+   - admin/courses.ts: validate class name (non-empty string),
+     subject fields (name, questionEveryNFrames must be int 1–20),
+     chapter fields (title non-empty, orderIndex must be int >= 0),
+     frame fields (contentText min 10 chars)
+   - admin/students.ts: validate name (non-empty), email (email format),
+     password (min 8 chars), subjectId (UUID format)
+   - student/progress.ts: validate frameId (UUID), selectedOption
+     must be one of 'A', 'B', 'C', 'D'
+
+2. Add rate limiting using express-rate-limit
+   - Install: npm install express-rate-limit
+   - Apply a strict limit to auth routes:
+       POST /auth/login → 10 requests per 15 minutes per IP
+       POST /auth/refresh → 30 requests per 15 minutes per IP
+   - Apply a general limit to all other API routes:
+       100 requests per minute per IP
+   - Return 429 Too Many Requests with a clear message
+
+3. Audit student data isolation
+   - Every student endpoint uses req.user.id to scope queries
+   - Verify: a student cannot access another student's progress by
+     guessing a different studentId in the URL
+   - Test: log in as student A, try GET /student/progress/chapter/:id
+     where the chapterId belongs to a chapter student B is enrolled in
+     but student A is not — should return 403 or empty result
+
+4. Secure HTTP headers
+   - Install: npm install helmet
+   - Add app.use(helmet()) to app.ts
+   - This adds security headers: X-Content-Type-Options,
+     X-Frame-Options, Strict-Transport-Security, etc.
+
+5. Verify environment variable usage
+   - api/.env must be in .gitignore — confirm this is the case
+   - Verify VITE_* variables in apps/web/.env contain no secrets
+     (only VITE_API_BASE_URL is acceptable)
+   - Do a grep across the entire codebase for any hardcoded API keys,
+     JWT secrets, or passwords
+
+6. SQL injection via Prisma
+   - Prisma parameterizes all queries by default — confirm no raw SQL
+     queries ($queryRaw or $executeRaw) have unescaped user input
+   - If any raw queries exist, replace with parameterized Prisma calls
+
+7. Test validation and security
+
+   Test A — Invalid login input
+   - POST /auth/login with missing password → 400 with validation error
+
+   Test B — Rate limiting
+   - Send 11 POST /auth/login requests in quick succession → 11th returns 429
+
+   Test C — Student isolation
+   - Log in as student A, request chapter progress for student B's chapter
+   - Should return 403 or empty
+
+   Test D — Injection attempt
+   - POST /admin/frames with contentText containing SQL injection string
+   - Should save literally (Prisma escapes), not execute
+
+FILES FROM project_structure/
+──────────────────────────────
+  api/src/app.ts                         → add helmet, rate limiter
+  api/src/routes/auth.ts                 → add Zod validation
+  api/src/routes/admin/courses.ts        → add Zod validation
+  api/src/routes/admin/students.ts       → add Zod validation
+  api/src/routes/student/progress.ts     → add Zod validation
+
+DONE WHEN
+─────────
+  [ ] All admin POST/PUT endpoints reject invalid input with 400
+  [ ] Rate limiting blocks excessive login attempts with 429
+  [ ] Student A cannot access student B's data
+  [ ] Helmet security headers are present on all API responses
+  [ ] No secrets in version control or VITE_ variables
+
+NEXT STEP
+─────────
+  Step 26 — Accessibility and User Settings
+================================================================================

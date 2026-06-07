@@ -1,0 +1,97 @@
+================================================================================
+  STEP 10 — WEB ROUTING AND LAYOUTS
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Build the React Router structure with role-based protected routes and both
+layout shells (admin sidebar + student header). After this step, navigating
+to any route either shows the correct shell or redirects to /login.
+
+PREREQUISITES
+─────────────
+- Step 09 (Web API Service and Auth Store) complete
+- Auth store works (login/logout confirmed)
+
+PROCESS
+───────
+1. Copy apps/web/src/components/shared/Layout.tsx from project_structure/
+   - AdminLayout: left sidebar with nav links to Dashboard, Courses,
+     Students, Analytics — uses React Router NavLink for active highlight
+   - StudentLayout: top header with app name and logout button
+   - Both use <Outlet /> so nested routes render inside the shell
+
+2. Copy apps/web/src/pages/LoginPage.tsx from project_structure/
+   - Email + password form using React Hook Form
+   - On submit calls authStore.login()
+   - On success, reads the user role and redirects:
+       admin / super_admin → /admin
+       student → /student
+
+3. Copy apps/web/src/App.tsx from project_structure/
+   - Sets up BrowserRouter with all routes
+   - ProtectedRoute component checks user role before rendering
+   - If not logged in → redirect to /login
+   - If wrong role → redirect to /login
+   - Admin routes are nested under AdminLayout
+   - Student routes are nested under StudentLayout
+
+4. Replace main.tsx content to render <App />
+   - Wrap with React.StrictMode
+   - Import global CSS (Tailwind directives)
+
+5. Test routing behaviour in the browser
+
+   Test A — Login page
+   - Visit http://localhost:5173
+   - Should redirect to /login (not logged in)
+   - Login form should be visible
+
+   Test B — Admin login and redirect
+   - Login with admin credentials
+   - Should redirect to /admin/dashboard
+   - Admin sidebar should be visible
+
+   Test C — Student login and redirect
+   - Login with student credentials
+   - Should redirect to /student/subjects
+   - Student header should be visible
+
+   Test D — Direct URL access
+   - While logged out, navigate directly to /admin/dashboard
+   - Should redirect to /login
+
+   Test E — Wrong role access
+   - Log in as student, then navigate to /admin/dashboard manually
+   - Should redirect to /login
+
+   Test F — Logout
+   - Click logout in admin sidebar
+   - Should redirect to /login
+   - localStorage should be cleared
+
+   Test G — Active nav link
+   - In admin, click Courses in the sidebar
+   - The Courses link should get the active highlight style
+
+FILES FROM project_structure/
+──────────────────────────────
+  apps/web/src/components/shared/Layout.tsx  → copy as-is
+  apps/web/src/pages/LoginPage.tsx            → copy as-is
+  apps/web/src/App.tsx                        → copy as-is
+
+DONE WHEN
+─────────
+  [ ] /login shows the login form
+  [ ] Admin login redirects to /admin/dashboard
+  [ ] Student login redirects to /student/subjects
+  [ ] Unauthenticated access to any route redirects to /login
+  [ ] Wrong-role access redirects to /login
+  [ ] Logout clears session and redirects to /login
+  [ ] Admin sidebar highlights the active page
+
+NEXT STEP
+─────────
+  Step 11 — Admin Course Builder UI
+================================================================================

@@ -1,0 +1,91 @@
+================================================================================
+  STEP 07 — STUDENT API
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Build all API endpoints that a student uses: fetch their assigned subjects,
+browse chapters, read frame content, and mark frames as listened. Question
+triggering is disabled here — it will be activated in Phase 3.
+
+PREREQUISITES
+─────────────
+- Step 06 (Admin Student Management API) complete
+- A student account exists with access granted to at least one subject
+  that contains at least one chapter with at least two frames
+
+PROCESS
+───────
+1. Copy api/src/routes/student/subjects.ts from project_structure/
+
+2. Copy api/src/routes/student/chapters.ts from project_structure/
+
+3. Copy api/src/routes/student/progress.ts from project_structure/
+   - Open the file and comment out the triggerQuestion() call
+   - Add comment: "LLM: re-enable in Phase 3 Step 19"
+   - This prevents errors since llm.service.ts is not wired yet
+
+4. Mount all three student routers in api/src/app.ts
+   - Prefix: /api/v1/student
+   - Apply verifyJWT + requireRole(['student']) to all student routes
+
+5. Test the student flow end-to-end in Postman
+   Switch to the student token for all requests below.
+
+   Test A — Login as student
+   - POST /api/v1/auth/login with student credentials
+   - Confirm accessToken received
+
+   Test B — My subjects
+   - GET /api/v1/student/subjects
+   - Expected: array containing the subject the admin granted access to
+   - If access was revoked in Step 06 Test E, re-grant it first
+
+   Test C — Chapter list with progress
+   - GET /api/v1/student/subjects/:subjectId/chapters
+   - Expected: chapters array, each with a progress object
+     { status: "not_started", lastFrameIndex: 0 }
+
+   Test D — Chapter detail with frames
+   - GET /api/v1/student/chapters/:chapterId
+   - Expected: chapter data + frames array (all frames with text content)
+   - Confirm audioUrl is null (audio not generated yet — that is correct)
+
+   Test E — Mark a frame as listened
+   - POST /api/v1/student/progress/frame
+   - Body: { frameId: "<id of frame 1>" }
+   - Expected: 200 with { success: true, shouldTriggerQuestion: false }
+   - Repeat for frame 2 and frame 3
+
+   Test F — Chapter progress updated
+   - GET /api/v1/student/progress/chapter/:chapterId
+   - Expected: status "in_progress", lastFrameIndex = 2 (index of last frame)
+
+   Test G — IQ score
+   - GET /api/v1/student/iq/:subjectId
+   - Expected: { score: 50 } (default, no questions answered yet)
+
+   Test H — Student cannot access admin routes
+   - GET /api/v1/admin/classes with student token
+   - Expected: 403 Forbidden
+
+FILES FROM project_structure/
+──────────────────────────────
+  api/src/routes/student/subjects.ts  → copy, keep as-is
+  api/src/routes/student/chapters.ts  → copy, keep as-is
+  api/src/routes/student/progress.ts  → copy, comment out triggerQuestion()
+
+DONE WHEN
+─────────
+  [ ] Student sees only their assigned subjects (not all subjects)
+  [ ] Chapter list includes progress status per chapter
+  [ ] Frames are returned in orderIndex order
+  [ ] Marking a frame as listened updates chapter progress in the DB
+  [ ] IQ score defaults to 50 for a new student
+  [ ] Student gets 403 on all admin routes
+
+NEXT STEP
+─────────
+  Step 08 — Queue Infrastructure
+================================================================================

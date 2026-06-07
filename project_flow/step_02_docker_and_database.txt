@@ -1,0 +1,69 @@
+================================================================================
+  STEP 02 — DOCKER AND DATABASE SETUP
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Get PostgreSQL and Redis running locally via Docker Compose, create the .env
+file with all required environment variables, and confirm the database is
+reachable before any migration is run.
+
+PREREQUISITES
+─────────────
+- Step 01 (Monorepo Scaffold) complete
+- Docker Desktop installed and running
+
+PROCESS
+───────
+1. Copy docker-compose.yml from project_structure/ to the repository root
+
+2. Copy .env.example from project_structure/ to the repository root
+   - Rename the copy to api/.env (the API reads it from there)
+   - The web app gets its own apps/web/.env in a later step
+
+3. Fill in api/.env with real values for the following
+   - DATABASE_URL   → use the same user/password/dbname as docker-compose.yml
+   - REDIS_URL      → redis://localhost:6379
+   - JWT_ACCESS_SECRET  → generate a random 32-byte hex string
+   - JWT_REFRESH_SECRET → generate a different random 32-byte hex string
+   - JWT_ACCESS_TTL     → 15m
+   - JWT_REFRESH_TTL    → 7d
+   Leave ANTHROPIC_API_KEY, ELEVENLABS_*, and AWS_* blank for now.
+   They are not needed until Phase 2 and Phase 3.
+
+4. Add api/.env to .gitignore so secrets are never committed
+
+5. Start the Docker containers
+   - Run docker-compose up -d from the repository root
+   - Confirm both postgres and redis containers show status "healthy"
+   - Check with: docker-compose ps
+
+6. Verify PostgreSQL is reachable
+   - Connect with any Postgres client (psql, TablePlus, DBeaver) using
+     the credentials from docker-compose.yml
+   - Database name: learndb
+   - Host: localhost, Port: 5432
+   - Confirm you can connect and the database is empty
+
+7. Verify Redis is reachable
+   - Use redis-cli ping from terminal
+   - Should return PONG
+
+FILES FROM project_structure/
+──────────────────────────────
+  docker-compose.yml                 → copy to repository root
+  .env.example                       → copy and rename to api/.env
+
+DONE WHEN
+─────────
+  [ ] docker-compose up -d runs without errors
+  [ ] Both postgres and redis containers show "healthy" in docker-compose ps
+  [ ] Can connect to PostgreSQL on localhost:5432
+  [ ] redis-cli ping returns PONG
+  [ ] api/.env exists and is in .gitignore
+
+NEXT STEP
+─────────
+  Step 03 — Prisma Schema and Migration
+================================================================================

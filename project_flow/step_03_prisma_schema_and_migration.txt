@@ -1,0 +1,71 @@
+================================================================================
+  STEP 03 — PRISMA SCHEMA AND MIGRATION
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Copy the complete Prisma schema into the API project, run the first migration
+to create all 10 database tables, and confirm the structure in Prisma Studio.
+After this step the database is fully ready to store application data.
+
+PREREQUISITES
+─────────────
+- Step 02 (Docker and Database) complete
+- PostgreSQL is running and reachable
+- api/.env has a valid DATABASE_URL
+
+PROCESS
+───────
+1. Create the folder api/src/prisma/
+
+2. Copy schema.prisma from project_structure/api/src/prisma/ into api/src/prisma/
+
+3. Copy api/src/lib/prisma.ts from project_structure/ into api/src/lib/
+
+4. In api/package.json, add a prisma config block pointing to the schema path
+   - schema: "src/prisma/schema.prisma"
+
+5. Run the first Prisma migration
+   - Command: npx prisma migrate dev --name init
+   - This creates all 10 tables in PostgreSQL:
+       users, classes, subjects, chapters, frames,
+       student_subject_access, student_chapter_progress,
+       student_frame_progress, student_iq_scores,
+       llm_questions, student_question_responses
+   - It also generates the Prisma Client TypeScript types
+
+6. Open Prisma Studio to visually confirm all tables exist
+   - Command: npx prisma studio
+   - Opens at http://localhost:5555
+   - Verify all 10 models are listed in the left panel
+
+7. Confirm the Prisma Client is generated
+   - Check that node_modules/.prisma/client exists
+   - Run tsc --noEmit in api/ — should still have zero errors
+
+8. Create a seed script at api/src/seed.ts
+   - Purpose: insert the first admin user so login can be tested
+   - User details: name, email, password (hashed with bcrypt), role = admin
+   - This is the only account that exists at first — all others are created
+     through the admin UI later
+   - Run the seed: npx ts-node src/seed.ts
+   - Confirm the user row appears in Prisma Studio under the users table
+
+FILES FROM project_structure/
+──────────────────────────────
+  api/src/prisma/schema.prisma       → copy to api/src/prisma/schema.prisma
+  api/src/lib/prisma.ts              → copy to api/src/lib/prisma.ts
+
+DONE WHEN
+─────────
+  [ ] npx prisma migrate dev --name init runs without errors
+  [ ] All 10 tables visible in Prisma Studio
+  [ ] Prisma Client generated (node_modules/.prisma/client present)
+  [ ] tsc --noEmit in api/ passes with zero errors
+  [ ] Seed script runs and admin user row appears in users table
+
+NEXT STEP
+─────────
+  Step 04 — Authentication API
+================================================================================

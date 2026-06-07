@@ -1,0 +1,77 @@
+================================================================================
+  STEP 16 — ADMIN TTS PREVIEW IN FRAME EDITOR
+  Phase 2 — Audio Engine
+================================================================================
+
+GOAL
+────
+Let the admin hear the generated TTS audio for a frame directly from the
+course builder before students see the chapter. The FrameEditor polls the TTS
+status after saving and shows a native audio player once the file is ready.
+
+PREREQUISITES
+─────────────
+- Step 15 (Audio Playback UI) complete
+- TTS generates real audio files (Step 14 complete)
+
+PROCESS
+───────
+1. The FrameEditor component already has TTS polling logic from the skeleton
+   (project_structure/apps/web/src/components/admin/FrameEditor.tsx)
+   Confirm it is working end-to-end now that real audio exists
+
+2. Verify the polling cycle in FrameEditor
+   - After POST /admin/frames or PUT /admin/frames responds, start polling
+   - Poll GET /admin/frames/:id/tts-status every 3 seconds
+   - While polling: show "TTS: generating" badge in amber
+   - On status = "ready": show "TTS: ready" badge in green, stop polling,
+     render a native <audio> element with the audioUrl as src
+   - On status = "failed": show "TTS: failed" badge in red, stop polling,
+     show a "Retry" button that triggers PUT /admin/frames/:id to re-queue
+
+3. Add a "Retry" button for failed TTS
+   - When audioStatus = "failed", show a Retry button in the frame card
+   - Clicking Retry calls PUT /admin/frames/:id (re-submits the same content)
+   - This re-enqueues the TTS job and resets audioStatus to "pending"
+   - Polling restarts
+
+4. Test the admin TTS preview flow
+
+   Test A — Normal generation
+   - Create a new frame with some text
+   - TTS badge shows "pending", then "generating", then "ready"
+   - Audio player appears and plays the speech when clicked
+
+   Test B — Update frame text
+   - Edit an existing frame's text
+   - Badge resets to "generating" and new audio is generated
+
+   Test C — Failed TTS
+   - Temporarily invalidate the ElevenLabs API key in .env and restart API
+   - Create a frame — status should go to "failed"
+   - Restore the key, click Retry — should generate successfully
+   - Restore real key before continuing
+
+   Test D — Admin previews before publishing
+   - Create 3 frames, all reach "ready"
+   - Play each preview — confirm the voice matches the frame text
+
+FILES FROM project_structure/
+──────────────────────────────
+  apps/web/src/components/admin/FrameEditor.tsx  → already copied in Step 11
+                                                    add Retry button for "failed"
+
+DONE WHEN
+─────────
+  [ ] Creating a frame shows generating → ready status badges in real time
+  [ ] Audio player appears in the frame card when status is "ready"
+  [ ] Admin can play the audio preview in the browser
+  [ ] Editing frame text re-triggers TTS and new audio plays
+  [ ] "Failed" status shows a Retry button that works
+  [ ] Phase 2 is COMPLETE — chapters narrate themselves automatically
+
+NEXT STEP
+─────────
+  Step 17 — LLM Service and IQ Logic
+  *** PHASE 2 COMPLETE — confirm all Done When items before continuing ***
+================================================================================

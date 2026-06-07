@@ -1,0 +1,99 @@
+================================================================================
+  STEP 26 — ACCESSIBILITY AND USER SETTINGS
+  Phase 4 — Analytics and Polish
+================================================================================
+
+GOAL
+────
+Make the app usable for all students by adding font size control, high-contrast
+mode, keyboard navigation, and persisted playback preferences. These settings
+are stored in localStorage — no backend changes needed.
+
+PREREQUISITES
+─────────────
+- Step 25 (Input Validation and Security) complete
+
+PROCESS
+───────
+1. Create a settings store (or extend auth.store.ts)
+   - Keys to persist in localStorage under "student-settings":
+       fontSize: 'sm' | 'md' | 'lg' | 'xl'    (default: 'md')
+       highContrast: boolean                     (default: false)
+       playbackRate: number                      (0.75, 1, 1.25, 1.5, default: 1)
+   - The playbackRate is already in playerStore — move persistence here
+     so speed preference is remembered across sessions
+
+2. Apply font size to the frame text area
+   - In ListenPage / FrameContent component, read fontSize from settings store
+   - Apply a Tailwind class based on the value:
+       sm → text-base (16px)
+       md → text-lg (18px)
+       lg → text-xl (20px)
+       xl → text-2xl (24px)
+
+3. Apply high-contrast mode
+   - When highContrast is true, add a class "high-contrast" to the root <html>
+   - Define CSS variables for high-contrast: white background, black text,
+     yellow accent for interactive elements
+   - This can be done with a small CSS block in index.css using
+     html.high-contrast { --bg: #000; --text: #fff; ... }
+
+4. Add a settings panel
+   - A small gear icon in the student header opens a settings drawer/modal
+   - Controls:
+       Font size slider or 4-button toggle: A- A A+ A++
+       High contrast toggle switch
+       Playback speed selector: 0.75x / 1x / 1.25x / 1.5x
+   - Changes take effect immediately and persist via localStorage
+
+5. Keyboard navigation audit
+   - Every interactive element must be reachable by Tab
+   - Enter or Space activates buttons
+   - Esc should close modals and overlays
+   - In the QuestionOverlay, arrow keys can move focus between options (optional)
+   - Use tabIndex, onKeyDown handlers where needed
+   - Test by navigating the entire chapter flow using only the keyboard
+
+6. Screen reader audit (basic)
+   - All buttons must have aria-label if the label is not a visible text string
+   - Images (frame images) must have alt="" (they are decorative) or a description
+   - Progress dots should have aria-label="Frame N of M, listened/unlistened"
+   - The QuestionOverlay title should have role="dialog" aria-modal="true"
+     and focus should move into it when it opens
+
+7. Test all accessibility changes
+
+   Test A — Font size changes apply immediately
+   - Open settings, increase font size to xl
+   - Frame text in the player should visibly grow
+
+   Test B — High contrast mode
+   - Toggle high contrast on
+   - Background turns dark, text turns white throughout
+
+   Test C — Playback speed persists
+   - Set speed to 1.5x, close the chapter
+   - Reopen — speed should still be 1.5x
+
+   Test D — Keyboard-only navigation
+   - Log in using only the keyboard
+   - Open a chapter, start a frame, answer a question — all with Tab + Enter
+
+FILES FROM project_structure/
+──────────────────────────────
+  No new skeleton files — this step creates new settings infrastructure
+  by extending existing Zustand stores and adding Tailwind CSS classes.
+
+DONE WHEN
+─────────
+  [ ] Font size setting changes frame text size immediately and persists
+  [ ] High contrast mode makes the app usable in dark background/white text
+  [ ] Playback speed setting persists across page reloads
+  [ ] Settings panel is accessible via gear icon in student header
+  [ ] All interactive elements are reachable by keyboard (Tab + Enter)
+  [ ] QuestionOverlay has role="dialog" and traps focus correctly
+
+NEXT STEP
+─────────
+  Step 27 — PWA and Deployment Preparation
+================================================================================

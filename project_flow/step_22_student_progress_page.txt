@@ -1,0 +1,85 @@
+================================================================================
+  STEP 22 — STUDENT PROGRESS PAGE
+  Phase 4 — Analytics and Polish
+================================================================================
+
+GOAL
+────
+Build the student-facing progress dashboard showing their IQ score trend over
+time, accuracy rate per subject, frames listened count, and a streak counter
+for consecutive days of study.
+
+PREREQUISITES
+─────────────
+- Step 21 (Admin Analytics Dashboard) complete
+- A student has at least 5 days of activity in the database
+
+PROCESS
+───────
+1. Add new API endpoints for student progress data
+   - GET /student/progress/summary — returns:
+       a. IQ score history: array of { date, score } for last 30 days
+          (query student_question_responses grouped by date, compute
+          running IQ score from deltas)
+       b. Per-subject accuracy: { subjectId, subjectName, correctCount,
+          totalCount, accuracyPercent }
+       c. Total frames listened: count of student_frame_progress rows
+          where listened = true
+       d. Study streak: consecutive days (ending today) where at least
+          one frame was listened
+          (query student_frame_progress by listenedAt date, count
+          consecutive days going backwards from today)
+   - Add this route to student/progress.ts
+
+2. Fill in apps/web/src/pages/student/ProgressPage.tsx
+   - Currently just a placeholder — replace with real UI
+   - Section 1: Streak banner at the top
+       Show current streak number and a flame icon (or similar visual)
+       "You've studied X days in a row!"
+   - Section 2: IQ trend line chart per subject
+       LineChart with date on X axis, IQ score on Y axis
+       One line per subject the student is enrolled in
+   - Section 3: Accuracy cards — one card per subject
+       Shows correct / total questions answered and accuracy %
+   - Section 4: Frames listened count
+       Total frames listened across all subjects
+   - Add navigation link in StudentLayout header: "Progress" → /student/progress
+
+3. Wire the Progress link in StudentLayout
+   - Add a "Progress" NavLink to the student header
+
+4. Test the progress page
+
+   Test A — Streak shows correctly
+   - If the student listened yesterday and today, streak = 2
+   - If the student skipped yesterday, streak = 0 (or 1 if they studied today)
+
+   Test B — IQ trend chart
+   - After 3 sessions on different days, the chart should show 3 data points
+   - An upward trend if mostly correct, downward if mostly incorrect
+
+   Test C — Accuracy cards
+   - Answer 10 questions, 7 correctly → accuracy = 70%
+   - Confirm the card shows 7 / 10 and 70%
+
+   Test D — Frames listened
+   - Listen to 5 frames in one session
+   - Total frames listened counter should increase by 5
+
+FILES FROM project_structure/
+──────────────────────────────
+  apps/web/src/pages/student/ProgressPage.tsx   → already copied, fill in fully
+  api/src/routes/student/progress.ts             → already copied, add summary endpoint
+
+DONE WHEN
+─────────
+  [ ] Progress page accessible via header navigation
+  [ ] Study streak number is correct
+  [ ] IQ trend chart shows at least one line with real data points
+  [ ] Accuracy cards show correct / total and percentage per subject
+  [ ] Total frames listened count is accurate
+
+NEXT STEP
+─────────
+  Step 23 — Sequential Chapter Unlock
+================================================================================

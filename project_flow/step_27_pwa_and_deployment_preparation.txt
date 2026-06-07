@@ -1,0 +1,109 @@
+================================================================================
+  STEP 27 — PWA AND DEPLOYMENT PREPARATION
+  Phase 4 — Analytics and Polish
+================================================================================
+
+GOAL
+────
+Package the web app as a Progressive Web App (PWA) so students can install it
+on mobile and use it offline. Then configure environment variables and
+deployment pipelines for staging and production.
+
+PREREQUISITES
+─────────────
+- Step 26 (Accessibility and User Settings) complete
+- All functionality from Phases 1–4 working correctly
+- Domain and hosting accounts provisioned (Vercel, Railway or Render,
+  Supabase, Upstash)
+
+PROCESS
+───────
+1. Add PWA support to the Vite app
+   - Install: npm install vite-plugin-pwa workbox-window
+   - Configure VitePWA plugin in vite.config.ts:
+       manifest: app name, short_name, theme_color, background_color,
+       icons (192x192 and 512x512 PNG — create these)
+       registerType: 'autoUpdate' — service worker updates silently
+   - Add to the manifest: display: "standalone", orientation: "portrait"
+   - This makes the "Add to Home Screen" prompt appear on mobile
+
+2. Configure audio caching in the service worker
+   - In the workbox config, add a runtime caching rule for S3 audio files:
+       URL pattern: match the S3_BASE_URL pattern
+       Strategy: CacheFirst with a max 200 entries, 7-day expiry
+   - This caches listened-to audio files locally so they play offline
+   - Do NOT cache the API responses (they must be fresh)
+
+3. Test PWA installation
+   - Open the app in Chrome on a mobile device (or Chrome DevTools mobile sim)
+   - "Add to Home Screen" option should appear in the browser menu
+   - After installing, launching the app from the home screen should show
+     standalone mode (no browser URL bar)
+
+4. Set up environment variables for production
+   - For Vercel (web frontend):
+       Add VITE_API_BASE_URL pointing to the production API URL
+   - For Railway/Render (API backend):
+       Add all variables from api/.env: DATABASE_URL, REDIS_URL,
+       JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, ANTHROPIC_API_KEY,
+       ELEVENLABS_API_KEY, AWS credentials, S3_BUCKET_NAME
+   - Never commit .env files — use platform-specific secret management
+
+5. Set up CI/CD with GitHub Actions
+   - Create .github/workflows/deploy.yml
+   - Triggers: push to main branch
+   - Jobs:
+       1. lint — run ESLint on api/ and apps/web/
+       2. typecheck — run tsc --noEmit on both packages
+       3. deploy-web — deploy to Vercel using Vercel CLI or Vercel GitHub integration
+       4. deploy-api — push to Railway/Render (they auto-deploy from main branch)
+   - Only deploy if lint and typecheck pass
+
+6. Set up Sentry error tracking
+   - Install: npm install @sentry/react @sentry/node
+   - Frontend: initialize Sentry in main.tsx with the Sentry DSN
+   - Backend: initialize in app.ts, add Sentry request and error handlers
+   - All unhandled errors will be reported to the Sentry dashboard
+
+7. Final production readiness checklist
+   - Verify CORS config in app.ts allows only the production domain
+   - Verify httpOnly cookie is set with secure: true in production
+   - Confirm S3 bucket is NOT publicly writable
+   - Run the Lighthouse audit in Chrome DevTools on the ListenPage
+     Target scores: Performance > 80, Accessibility > 90, PWA > 90
+
+8. Test production deployment
+
+   Test A — Vercel deployment builds without errors
+   - Trigger a deploy, check the Vercel build logs
+
+   Test B — API health check
+   - GET https://api.yourdomain.com/api/v1/health should return 200
+
+   Test C — Login works in production
+   - Log in as admin and student from the production URL
+
+   Test D — Audio plays from S3 in production
+   - Open a chapter — confirm audio loads from the real S3 URL, not localhost
+
+FILES FROM project_structure/
+──────────────────────────────
+  This step creates new infrastructure files outside project_structure/:
+    .github/workflows/deploy.yml
+    apps/web/vite.config.ts         → update to add VitePWA plugin
+    apps/web/public/                → add manifest icons
+
+DONE WHEN
+─────────
+  [ ] Vite build produces a valid service worker file (sw.js in dist/)
+  [ ] "Add to Home Screen" prompt appears on Chrome mobile
+  [ ] Cached audio plays correctly when the device is offline
+  [ ] GitHub Actions CI runs lint, typecheck, and deploys on merge to main
+  [ ] Sentry captures errors from both frontend and backend
+  [ ] Production deployment accessible via the live domain
+  [ ] Lighthouse PWA score is above 90
+
+NEXT STEP
+─────────
+  Step 28 — Load Testing and Pre-Launch Review
+================================================================================

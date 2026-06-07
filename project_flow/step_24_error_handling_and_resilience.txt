@@ -1,0 +1,96 @@
+================================================================================
+  STEP 24 — ERROR HANDLING AND RESILIENCE
+  Phase 4 — Analytics and Polish
+================================================================================
+
+GOAL
+────
+Ensure the app degrades gracefully when audio fails to load, the LLM is
+unavailable, the TTS service is down, or the network drops. No crash or
+frozen screen — always give the student a path forward.
+
+PREREQUISITES
+─────────────
+- Step 23 (Sequential Chapter Unlock) complete
+- All player states functional
+
+PROCESS
+───────
+1. Audio load failure (Howler.js)
+   - Howler onloaderror fires when the S3 URL is unreachable or invalid
+   - Current skeleton logs a console error — this is not enough
+   - Update playerStore.loadChapter to set player state to 'error'
+   - On 'error' state, ListenPage shows an error card:
+       "This frame's audio couldn't load."
+       Two buttons: [Retry Frame] [Skip to Next Frame]
+   - [Retry Frame] attempts to reload the same Howl instance
+   - [Skip to Next Frame] calls goToFrame(currentFrameIndex + 1)
+   - This path keeps the student in the chapter even if one frame has bad audio
+
+2. Audio timeout (audio never starts)
+   - Set a 10-second watchdog timer when a frame starts loading
+   - If onplay has not fired within 10 seconds, treat as load failure
+   - Show the same error card from step 1
+
+3. LLM question failure (already partially handled)
+   - generateQuestion() already returns null on two failed attempts
+   - Confirm that triggerQuestion() silently skips — does NOT block frame advance
+   - Write a test: kill the ANTHROPIC_API_KEY temporarily, listen to N frames
+   - The player should advance to the next frame automatically after the
+     N-frame mark without showing any error to the student
+
+4. TTS job failure
+   - tts.job.ts already sets audio_status to 'failed' after 3 attempts
+   - Admin TTS preview button should show a warning when status is 'failed'
+   - Student ListenPage: if audio_url is null and audio_status is 'failed',
+     show frame text only (no audio) with a visual note:
+     "Audio unavailable — text shown below"
+   - This is the graceful text fallback mode
+
+5. Network offline detection
+   - Add a global online/offline event listener in App.tsx or main.tsx
+   - When window.ononline fires — show a dismissible banner:
+     "You're offline. Progress saves when your connection returns."
+   - Disable the "mark frame listened" API call while offline
+     (store pending calls in a local queue, flush when back online)
+   - The student can still read frame text while offline
+
+6. JWT expiry mid-session
+   - Axios interceptor already handles 401 by refreshing the token
+   - Verify: simulate an expired token mid-chapter
+   - Player should not stop; token refreshes transparently and the
+     progress POST retries automatically
+
+7. Test all failure paths
+
+   Test A — Corrupt audio URL
+   - Manually set a frame's audio_url to an invalid URL in the DB
+   - Open that chapter — error card should appear on that frame
+   - Clicking Skip should move to the next frame
+
+   Test B — LLM timeout (no ANTHROPIC_API_KEY)
+   - Remove the key from .env, restart API
+   - Listen to N frames — audio advances, no question appears, no crash
+
+   Test C — Failed TTS
+   - Manually set audio_status = 'failed' on a frame
+   - Open the chapter — text fallback mode should show
+
+FILES FROM project_structure/
+──────────────────────────────
+  apps/web/src/stores/player.store.ts   → already copied, add error state handling
+  api/src/jobs/tts.job.ts               → already copied, confirm failed status path
+
+DONE WHEN
+─────────
+  [ ] Audio load failure shows an error card with Retry and Skip options
+  [ ] Audio timeout after 10s triggers the same error card
+  [ ] LLM failure silently skips the question, audio continues
+  [ ] Failed TTS shows frame text as fallback in the player
+  [ ] Offline detection shows a banner and queues progress saves
+  [ ] Expired JWT mid-session is handled transparently by the Axios interceptor
+
+NEXT STEP
+─────────
+  Step 25 — Input Validation and Security
+================================================================================

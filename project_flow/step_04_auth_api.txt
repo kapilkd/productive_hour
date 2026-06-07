@@ -1,0 +1,93 @@
+================================================================================
+  STEP 04 — AUTHENTICATION API
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Build the three authentication endpoints (login, refresh token, logout), the
+JWT verification middleware, and the role-based access control middleware.
+After this step, any API client can obtain a token and the server can verify
+identity and role on every request.
+
+PREREQUISITES
+─────────────
+- Step 03 (Prisma Schema and Migration) complete
+- Admin user seeded in the database
+- api/.env has JWT_ACCESS_SECRET and JWT_REFRESH_SECRET set
+
+PROCESS
+───────
+1. Copy api/src/middleware/auth.ts from project_structure/
+   - This file verifies the Bearer token in the Authorization header
+   - On success it attaches req.user = { id, role, email }
+   - On failure it returns 401
+
+2. Copy api/src/middleware/rbac.ts from project_structure/
+   - This file exports requireRole(roles[]) which returns a middleware
+   - If req.user.role is not in the allowed list, it returns 403
+
+3. Copy api/src/routes/auth.ts from project_structure/
+   - POST /auth/login     — verifies email + bcrypt password, issues tokens
+   - POST /auth/refresh   — reads httpOnly cookie, issues new access token
+   - POST /auth/logout    — clears the httpOnly refresh token cookie
+
+4. Create api/src/app.ts (copy from project_structure/)
+   - For now, only mount the auth routes
+   - Mount at prefix /api/v1/auth
+   - All other route mounts are commented out — they will be uncommented
+     in subsequent steps
+
+5. Create api/src/server.ts
+   - Imports app from app.ts
+   - Reads PORT from process.env (default 4000)
+   - Calls app.listen()
+   - This is the entry point for nodemon
+
+6. Start the API server with nodemon
+   - Should print "API running on :4000" in the terminal
+
+7. Test all three endpoints using Postman (or any HTTP client)
+
+   Test A — Successful login
+   - POST http://localhost:4000/api/v1/auth/login
+   - Body: email and password of the seeded admin user
+   - Expected: 200 with accessToken in body, refreshToken in httpOnly cookie
+
+   Test B — Login with wrong password
+   - Same endpoint, wrong password
+   - Expected: 401 with "Invalid credentials"
+
+   Test C — Refresh token
+   - POST /api/v1/auth/refresh (cookie must be sent automatically)
+   - Expected: 200 with a new accessToken
+
+   Test D — Logout
+   - POST /api/v1/auth/logout with Authorization: Bearer <token>
+   - Expected: 200, cookie cleared
+
+   Test E — Access protected route without token
+   - GET /api/v1/auth/logout with no header
+   - Expected: 401
+
+FILES FROM project_structure/
+──────────────────────────────
+  api/src/middleware/auth.ts         → copy to api/src/middleware/auth.ts
+  api/src/middleware/rbac.ts         → copy to api/src/middleware/rbac.ts
+  api/src/routes/auth.ts             → copy to api/src/routes/auth.ts
+  api/src/app.ts                     → copy to api/src/app.ts
+                                       (only auth route mount, rest commented)
+
+DONE WHEN
+─────────
+  [ ] POST /auth/login returns accessToken and sets httpOnly cookie
+  [ ] POST /auth/refresh returns a new accessToken
+  [ ] POST /auth/logout clears the cookie
+  [ ] Request without token returns 401
+  [ ] Request with student token to an admin route returns 403
+  [ ] API server starts without errors via nodemon
+
+NEXT STEP
+─────────
+  Step 05 — Admin Course CRUD API
+================================================================================

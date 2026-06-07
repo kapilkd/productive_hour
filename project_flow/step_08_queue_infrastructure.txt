@@ -1,0 +1,69 @@
+================================================================================
+  STEP 08 — QUEUE INFRASTRUCTURE (BullMQ + Redis)
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Set up the BullMQ queue and worker structure so the infrastructure is in place
+and tested before Phase 2 connects real TTS jobs to it. After this step the
+queue accepts jobs and a worker can pick them up — but no actual TTS calls
+are made yet.
+
+PREREQUISITES
+─────────────
+- Step 07 (Student API) complete
+- Redis is running (from Step 02 docker-compose)
+- api/.env has REDIS_URL set
+
+PROCESS
+───────
+1. Copy api/src/jobs/tts.job.ts from project_structure/
+
+2. Review what the worker does
+   - It reads a TTSJobData object: { frameId, text, voiceId, retryCount }
+   - It updates the frame's audioStatus: pending → generating → ready / failed
+   - It calls generateAudio() then uploadAudio() — both of which need
+     ElevenLabs and S3 credentials that do not exist yet
+   - For now, replace the worker body with a stub that just logs the job
+     and marks the frame as "ready" with a placeholder audioUrl
+     Add comment: "TTS stub: replace with real calls in Phase 2 Step 14"
+
+3. Confirm the queue and worker start without crashing
+   - Create a small test script at api/src/test-queue.ts (not committed)
+   - The script enqueues one job and waits for the worker to process it
+   - Confirm in logs that the job was received and processed
+
+4. Re-enable enqueueTTSJob in api/src/routes/admin/courses.ts
+   - Uncomment the calls in POST /frames and PUT /frames
+   - Now when a frame is saved, a job goes onto the queue
+   - The stub worker picks it up and sets audioStatus = "ready"
+     with a fake audioUrl
+
+5. Test the full queue cycle
+   - Create a new frame via POST /api/v1/admin/frames
+   - Watch the API logs — the worker should log the job
+   - Poll GET /api/v1/admin/frames/:id/tts-status
+   - Expected: audioStatus changes from "pending" to "ready"
+
+6. Add scripts to package.json for running the worker separately
+   - "worker": "ts-node src/jobs/tts.job.ts"
+   - In production the worker runs as a separate process
+
+FILES FROM project_structure/
+──────────────────────────────
+  api/src/jobs/tts.job.ts            → copy, then replace worker body with stub
+
+DONE WHEN
+─────────
+  [ ] BullMQ queue connects to Redis without errors
+  [ ] Worker process starts without errors (run in separate terminal)
+  [ ] Creating a frame via API enqueues a job
+  [ ] Worker processes the job and updates audioStatus to "ready"
+  [ ] GET /admin/frames/:id/tts-status returns "ready"
+  [ ] No ElevenLabs or S3 credentials needed at this stage
+
+NEXT STEP
+─────────
+  Step 09 — Web API Service and Auth Store
+================================================================================

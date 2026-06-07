@@ -1,0 +1,91 @@
+================================================================================
+  STEP 13 — STUDENT WEB — PHASE 1 SCREENS (Text-Only)
+  Phase 1 — Foundation
+================================================================================
+
+GOAL
+────
+Build the student-facing screens for Phase 1: the subjects list and a
+text-only chapter reading view. The student should be able to log in,
+see their assigned subjects, open a chapter, and scroll through frame
+text. No audio yet — that is Phase 2.
+
+PREREQUISITES
+─────────────
+- Step 12 (Admin Student Management UI) complete
+- A student account has been created and granted access to at least one
+  subject with at least one chapter containing at least 3 frames
+
+PROCESS
+───────
+1. Copy apps/web/src/stores/progress.store.ts from project_structure/
+   - Stores chapter progress records keyed by chapterId
+   - Stores IQ scores keyed by subjectId
+   - fetchProgress(subjectId) fetches chapters + IQ for a given subject
+
+2. Copy apps/web/src/pages/student/SubjectsPage.tsx from project_structure/
+   - Fetches GET /student/subjects on mount
+   - For each subject, also fetches progress via progressStore.fetchProgress()
+   - Displays subject cards with name, description, and IQ score badge
+   - Clicking a card navigates to /student/subjects/:subjectId
+   - Register route in App.tsx
+
+3. Create a simple apps/web/src/pages/student/SubjectChaptersPage.tsx
+   (this page is not in project_structure — create it now as a simple page)
+   - Route: /student/subjects/:subjectId
+   - Fetches GET /student/subjects/:subjectId/chapters
+   - Lists chapters with title, order number, and status badge
+     (not_started / in_progress / completed)
+   - Completed chapters are visually distinct (green badge)
+   - Clicking a chapter navigates to /student/chapters/:chapterId/listen
+   - Register route in App.tsx
+
+4. For Phase 1, update ListenPage to show text only (no audio controls yet)
+   - Copy apps/web/src/pages/student/ListenPage.tsx from project_structure/
+   - For this step, strip it down to show only:
+       - Chapter title at the top
+       - Current frame text (large, readable)
+       - Previous / Next frame buttons (manual navigation)
+       - Frame counter (e.g. "Frame 3 / 7")
+   - Do NOT add the player store or Howler yet — keep it simple
+   - Mark frames as listened by calling POST /student/progress/frame
+     whenever the student clicks Next
+   - Register route in App.tsx
+
+5. Test the complete student journey in the browser
+
+   Journey to test:
+   - Log in as the student
+   - See the Subjects page with the assigned subject and IQ = 50
+   - Click the subject → see the chapter list
+   - Click Chapter 1 → see frame 1 text
+   - Click Next → see frame 2 text, frame 1 is marked as listened
+   - Click Next → see frame 3 text, frame 2 is marked as listened
+   - Go back to the chapter list → Chapter 1 should show "in_progress"
+   - Open Chapter 1 again → it should resume from the last frame visited
+     (check lastFrameIndex from GET /student/chapters/:id)
+
+FILES FROM project_structure/
+──────────────────────────────
+  apps/web/src/stores/progress.store.ts          → copy as-is
+  apps/web/src/pages/student/SubjectsPage.tsx    → copy as-is
+  apps/web/src/pages/student/ListenPage.tsx      → copy, then simplify
+                                                    to text-only for Phase 1
+
+DONE WHEN
+─────────
+  [ ] Student sees only their assigned subjects on the subjects page
+  [ ] IQ score badge shows 50 on each subject card
+  [ ] Subject click shows the chapter list for that subject
+  [ ] Each chapter shows its status (not_started / in_progress / completed)
+  [ ] Clicking a chapter shows frame text
+  [ ] Next / Previous navigation works
+  [ ] Clicking Next marks the current frame as listened
+  [ ] Re-opening a chapter resumes from the last visited frame
+  [ ] Phase 1 is COMPLETE — all roles can perform their full workflows
+
+NEXT STEP
+─────────
+  Step 14 — TTS Service and S3 Storage
+  *** PHASE 1 COMPLETE — confirm all Done When items before continuing ***
+================================================================================
