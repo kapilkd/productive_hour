@@ -8,6 +8,8 @@ export default function ClassDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const className = (location.state as any)?.className ?? 'Class';
+  const boardId = (location.state as any)?.boardId as string | undefined;
+  const boardName = (location.state as any)?.boardName as string | undefined;
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,87 +53,110 @@ export default function ClassDetailPage() {
   };
 
   return (
-    <div className="p-8">
-      <button onClick={() => navigate('/admin/classes')} className="text-gray-400 hover:text-white text-sm mb-4 flex items-center gap-1">
-        ← Back to Classes
+    <div className="p-8 neu-page min-h-screen">
+      <button
+        onClick={() => boardId
+          ? navigate(`/admin/boards/${boardId}`, { state: { boardName } })
+          : navigate('/admin/boards')
+        }
+        className="neu-btn neu-btn-raised neu-btn-sm mb-6"
+      >
+        ← Back to {boardName ?? 'Boards'}
       </button>
 
-      <div className="flex items-center justify-between mb-6">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">{className}</h1>
-          <p className="text-gray-400 text-sm">Subjects in this class</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--neu-text)', marginBottom: '4px' }}>{className}</h1>
+          <p style={{ fontSize: '13px', color: 'var(--neu-text-muted)' }}>Subjects in this class</p>
         </div>
-        <button
-          onClick={() => setShowForm(f => !f)}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
+        <button onClick={() => setShowForm(f => !f)} className="neu-btn neu-btn-raised">
           {showForm ? 'Cancel' : '+ New Subject'}
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleCreate} className="bg-gray-900 rounded-xl p-5 mb-6 space-y-3">
-          <h2 className="text-sm font-semibold text-white">New Subject</h2>
-          <input
-            value={form.name}
-            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            placeholder="Subject name"
-            className="w-full bg-gray-800 text-white rounded-lg px-4 py-2.5 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-500"
-            required
-          />
-          <input
-            value={form.description}
-            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            placeholder="Description (optional)"
-            className="w-full bg-gray-800 text-white rounded-lg px-4 py-2.5 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-500"
-          />
-          <div className="flex gap-4 items-center">
-            <label className="text-gray-400 text-sm">Ask question every</label>
-            <input
-              type="number"
-              min="1"
-              max="10"
-              value={form.questionEveryNFrames}
-              onChange={e => setForm(f => ({ ...f, questionEveryNFrames: e.target.value }))}
-              className="w-16 bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <span className="text-gray-400 text-sm">frames</span>
-          </div>
-          <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.sequentialChapters}
-              onChange={e => setForm(f => ({ ...f, sequentialChapters: e.target.checked }))}
-              className="accent-indigo-500"
-            />
-            Sequential chapter unlock
-          </label>
-          {error && <p className="text-red-400 text-xs">{error}</p>}
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium"
-          >
-            {saving ? 'Creating…' : 'Create Subject'}
-          </button>
-        </form>
+        <div className="neu-card mb-6">
+          <h2 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--neu-text)', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            New Subject
+          </h2>
+          <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="neu-input-group">
+              <label className="neu-label">Subject Name</label>
+              <input
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Mathematics"
+                className="neu-input"
+                required
+              />
+            </div>
+            <div className="neu-input-group">
+              <label className="neu-label">Description (optional)</label>
+              <input
+                value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Brief description"
+                className="neu-input"
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label className="neu-label" style={{ margin: 0 }}>Ask question every</label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={form.questionEveryNFrames}
+                onChange={e => setForm(f => ({ ...f, questionEveryNFrames: e.target.value }))}
+                className="neu-input"
+                style={{ width: '72px' }}
+              />
+              <span style={{ fontSize: '13px', color: 'var(--neu-text-muted)' }}>frames</span>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+              <div
+                className={`neu-toggle-track ${form.sequentialChapters ? 'neu-toggle-active' : ''}`}
+                onClick={() => setForm(f => ({ ...f, sequentialChapters: !f.sequentialChapters }))}
+              >
+                <div className="neu-toggle-thumb" />
+              </div>
+              <span style={{ fontSize: '13px', color: 'var(--neu-text)' }}>Sequential chapter unlock</span>
+            </label>
+            {error && <p style={{ fontSize: '12px', color: 'var(--neu-danger)' }}>{error}</p>}
+            <button type="submit" disabled={saving} className="neu-btn neu-btn-accent" style={{ alignSelf: 'flex-start' }}>
+              {saving ? 'Creating…' : 'Create Subject'}
+            </button>
+          </form>
+        </div>
       )}
 
       {loading ? (
-        <p className="text-gray-500">Loading…</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--neu-text-muted)' }}>
+          <div style={{ width: '18px', height: '18px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%' }} className="animate-spin" />
+          Loading…
+        </div>
       ) : subjects.length === 0 ? (
-        <p className="text-gray-500">No subjects yet.</p>
+        <p style={{ color: 'var(--neu-text-muted)' }}>No subjects yet.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
           {subjects.map(s => (
             <button
               key={s.id}
               onClick={() => navigate(`/admin/subjects/${s.id}`, { state: { subjectName: s.name } })}
-              className="bg-gray-900 hover:bg-gray-800 rounded-xl p-5 text-left transition-colors group"
+              className="neu-card"
+              style={{ textAlign: 'left', cursor: 'pointer' }}
             >
-              <p className="text-white font-semibold group-hover:text-indigo-300 transition-colors">{s.name}</p>
-              {s.description && <p className="text-gray-400 text-sm mt-1">{s.description}</p>}
-              <p className="text-gray-500 text-xs mt-2">Question every {s.questionEveryNFrames} frames</p>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontWeight: 600, color: 'var(--neu-text)', marginBottom: '4px' }}>{s.name}</p>
+                  {s.description && (
+                    <p style={{ fontSize: '12px', color: 'var(--neu-text-muted)', marginBottom: '8px' }}>{s.description}</p>
+                  )}
+                  <span className="neu-badge" style={{ fontSize: '10px' }}>
+                    Q every {s.questionEveryNFrames} frames
+                  </span>
+                </div>
+                <span style={{ color: 'var(--neu-accent)', fontSize: '16px', flexShrink: 0 }}>→</span>
+              </div>
             </button>
           ))}
         </div>

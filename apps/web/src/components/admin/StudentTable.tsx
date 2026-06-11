@@ -10,36 +10,39 @@ export default function StudentTable({ students }: Props) {
   const navigate = useNavigate();
 
   if (students.length === 0) {
-    return <p className="text-gray-500 text-sm">No students yet.</p>;
+    return (
+      <div className="neu-card" style={{ textAlign: 'center', padding: '32px' }}>
+        <p style={{ fontSize: '28px', marginBottom: '10px' }}>👥</p>
+        <p style={{ color: 'var(--neu-text-muted)', fontSize: '14px' }}>No students yet. Create the first one above.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="neu-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <table className="neu-table">
         <thead>
-          <tr className="text-left text-gray-500 border-b border-gray-800">
-            <th className="pb-3 pr-4 font-medium">Name</th>
-            <th className="pb-3 pr-4 font-medium">Email</th>
-            <th className="pb-3 pr-4 font-medium">Status</th>
-            <th className="pb-3 font-medium">Actions</th>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-800">
+        <tbody>
           {students.map(s => (
-            <tr key={s.id} className="hover:bg-gray-800/40 transition-colors">
-              <td className="py-3 pr-4 text-white">{s.name}</td>
-              <td className="py-3 pr-4 text-gray-400">{s.email}</td>
-              <td className="py-3 pr-4">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  s.isActive ? 'bg-green-500/20 text-green-400' : 'bg-gray-700 text-gray-400'
-                }`}>
+            <tr key={s.id}>
+              <td style={{ fontWeight: 500, color: 'var(--neu-text)' }}>{s.name}</td>
+              <td style={{ color: 'var(--neu-text-muted)' }}>{s.email}</td>
+              <td>
+                <span className={s.isActive ? 'neu-badge-success' : 'neu-badge'} style={{ fontSize: '10px' }}>
                   {s.isActive ? 'Active' : 'Inactive'}
                 </span>
               </td>
-              <td className="py-3">
+              <td>
                 <button
                   onClick={() => navigate(`/admin/students/${s.id}`, { state: { student: s } })}
-                  className="text-indigo-400 hover:text-indigo-300 text-sm"
+                  className="neu-btn neu-btn-accent neu-btn-sm"
                 >
                   Manage →
                 </button>

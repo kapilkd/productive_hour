@@ -26,37 +26,63 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-      <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-sm shadow-2xl">
-        <h1 className="text-2xl font-bold text-white mb-1">LearnFlow</h1>
-        <p className="text-gray-400 text-sm mb-6">Sign in to continue</p>
+    <div className="min-h-screen neu-page flex items-center justify-center p-6">
+      <div style={{ width: '100%', maxWidth: '380px' }}>
+        {/* Logo card */}
+        <div className="neu-card text-center mb-6">
+          <div className="neu-raised inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 text-2xl"
+               style={{ color: 'var(--neu-accent)' }}>
+            🎧
+          </div>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--neu-text)' }}>LearnFlow</h1>
+          <p className="text-sm" style={{ color: 'var(--neu-text-muted)' }}>Adaptive learning platform</p>
+        </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <input
-            {...register('email', { required: true })}
-            type="email"
-            placeholder="Email address"
-            autoComplete="email"
-            className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-500"
-          />
-          <input
-            {...register('password', { required: true })}
-            type="password"
-            placeholder="Password"
-            autoComplete="current-password"
-            className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-500"
-          />
+        {/* Login form */}
+        <div className="neu-card">
+          <p className="text-sm font-semibold mb-5" style={{ color: 'var(--neu-text-muted)' }}>
+            SIGN IN TO CONTINUE
+          </p>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <div className="neu-input-group">
+              <label className="neu-label">Email address</label>
+              <input
+                {...register('email', { required: true })}
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                className="neu-input"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white py-3 rounded-lg font-semibold transition-colors"
-          >
-            {isSubmitting ? 'Signing in…' : 'Sign In'}
-          </button>
-        </form>
+            <div className="neu-input-group">
+              <label className="neu-label">Password</label>
+              <input
+                {...register('password', { required: true })}
+                type="password"
+                placeholder="••••••••"
+                autoComplete="current-password"
+                className="neu-input"
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm mb-4" style={{ color: 'var(--neu-danger)' }}>
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="neu-btn neu-btn-accent neu-btn-pill w-full"
+              style={{ padding: '0.8rem', fontSize: '15px' }}
+            >
+              {isSubmitting ? 'Signing in…' : 'Sign In →'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

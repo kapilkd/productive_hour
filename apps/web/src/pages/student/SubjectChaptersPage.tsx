@@ -3,16 +3,10 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiClient } from '../../services/api.service';
 import type { ChapterWithProgress, ChapterStatus } from '../../types';
 
-const statusBadge: Record<ChapterStatus, string> = {
-  not_started: 'bg-gray-700 text-gray-400',
-  in_progress:  'bg-blue-500/20 text-blue-400',
-  completed:    'bg-green-500/20 text-green-400',
-};
-
-const statusLabel: Record<ChapterStatus, string> = {
-  not_started: 'Not started',
-  in_progress:  'In progress',
-  completed:    'Completed',
+const statusConfig: Record<ChapterStatus, { label: string; className: string }> = {
+  not_started: { label: 'Not started', className: 'neu-badge' },
+  in_progress:  { label: 'In progress',  className: 'neu-badge-info' },
+  completed:    { label: 'Completed',    className: 'neu-badge-success' },
 };
 
 export default function SubjectChaptersPage() {
@@ -31,42 +25,64 @@ export default function SubjectChaptersPage() {
   }, [subjectId]);
 
   return (
-    <div className="p-8 max-w-2xl">
-      <button onClick={() => navigate('/student/subjects')} className="text-gray-400 hover:text-white text-sm mb-4 flex items-center gap-1">
+    <div className="p-8 neu-page min-h-screen" style={{ maxWidth: '720px' }}>
+      <button onClick={() => navigate('/student/subjects')}
+        className="neu-btn neu-btn-raised neu-btn-sm mb-6">
         ← My Subjects
       </button>
 
-      <h1 className="text-2xl font-bold text-white mb-1">{subjectName}</h1>
-      <p className="text-gray-400 text-sm mb-8">Chapters</p>
+      <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--neu-text)' }}>{subjectName}</h1>
+      <p className="text-sm mb-8" style={{ color: 'var(--neu-text-muted)' }}>Chapters</p>
 
       {loading ? (
-        <p className="text-gray-500">Loading…</p>
+        <div className="flex items-center gap-3" style={{ color: 'var(--neu-text-muted)' }}>
+          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          Loading…
+        </div>
       ) : chapters.length === 0 ? (
-        <p className="text-gray-500">No chapters available yet.</p>
+        <p style={{ color: 'var(--neu-text-muted)' }}>No chapters available yet.</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {chapters.map((chapter, idx) => {
             const status = chapter.progress?.status ?? 'not_started';
+            const cfg = statusConfig[status];
+            const isLocked = idx > 0 && chapters[idx - 1].progress?.status !== 'completed'
+              && status === 'not_started';
             return (
               <button
                 key={chapter.id}
-                onClick={() => navigate(`/student/chapters/${chapter.id}/listen`, {
+                onClick={() => !isLocked && navigate(`/student/chapters/${chapter.id}/listen`, {
                   state: { chapterTitle: chapter.title, subjectId, subjectName }
                 })}
-                className="w-full bg-gray-900 hover:bg-gray-800 rounded-xl px-5 py-4 text-left transition-colors group flex items-center justify-between"
+                disabled={isLocked}
+                className="neu-card w-full text-left"
+                style={{ cursor: isLocked ? 'not-allowed' : 'pointer', opacity: isLocked ? 0.5 : 1 }}
               >
-                <div className="flex items-center gap-4">
-                  <span className="text-gray-500 text-sm w-6 shrink-0">{idx + 1}</span>
-                  <div>
-                    <p className="text-white font-medium group-hover:text-indigo-300 transition-colors">{chapter.title}</p>
-                    {chapter.description && (
-                      <p className="text-gray-400 text-sm mt-0.5">{chapter.description}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="neu-raised flex items-center justify-center w-9 h-9 rounded-xl shrink-0 text-sm font-bold"
+                         style={{ color: status === 'completed' ? 'var(--neu-success)' : 'var(--neu-text-muted)' }}>
+                      {status === 'completed' ? '✓' : idx + 1}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm" style={{ color: 'var(--neu-text)' }}>
+                        {chapter.title}
+                      </p>
+                      {chapter.description && (
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--neu-text-muted)' }}>
+                          {chapter.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-4">
+                    <span className={`neu-badge ${cfg.className}`}>{cfg.label}</span>
+                    {!isLocked && (
+                      <span style={{ color: 'var(--neu-accent)', fontSize: '18px' }}>▶</span>
                     )}
+                    {isLocked && <span style={{ color: 'var(--neu-text-muted)' }}>🔒</span>}
                   </div>
                 </div>
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ml-4 ${statusBadge[status]}`}>
-                  {statusLabel[status]}
-                </span>
               </button>
             );
           })}

@@ -6,7 +6,8 @@ import LoginPage from './pages/LoginPage';
 import { AdminLayout, StudentLayout } from './components/shared/Layout';
 
 import DashboardPage from './pages/admin/DashboardPage';
-import ClassesPage from './pages/admin/ClassesPage';
+import BoardsPage from './pages/admin/BoardsPage';
+import BoardDetailPage from './pages/admin/BoardDetailPage';
 import ClassDetailPage from './pages/admin/ClassDetailPage';
 import SubjectDetailPage from './pages/admin/SubjectDetailPage';
 import ChapterDetailPage from './pages/admin/ChapterDetailPage';
@@ -48,7 +49,8 @@ export default function App() {
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="classes" element={<ClassesPage />} />
+          <Route path="boards" element={<BoardsPage />} />
+          <Route path="boards/:boardId" element={<BoardDetailPage />} />
           <Route path="classes/:classId" element={<ClassDetailPage />} />
           <Route path="subjects/:subjectId" element={<SubjectDetailPage />} />
           <Route path="chapters/:chapterId" element={<ChapterDetailPage />} />

@@ -57,79 +57,91 @@ export default function SubjectDetailPage() {
   };
 
   return (
-    <div className="p-8">
-      <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white text-sm mb-4 flex items-center gap-1">
+    <div className="p-8 neu-page min-h-screen" style={{ maxWidth: '860px' }}>
+      <button onClick={() => navigate(-1)} className="neu-btn neu-btn-raised neu-btn-sm mb-6">
         ← Back
       </button>
 
-      <div className="flex items-center justify-between mb-6">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">{subjectName}</h1>
-          <p className="text-gray-400 text-sm">Chapters</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--neu-text)', marginBottom: '4px' }}>{subjectName}</h1>
+          <p style={{ fontSize: '13px', color: 'var(--neu-text-muted)' }}>
+            {chapters.length} chapter{chapters.length !== 1 ? 's' : ''}
+          </p>
         </div>
-        <button
-          onClick={() => setShowForm(f => !f)}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
+        <button onClick={() => setShowForm(f => !f)} className="neu-btn neu-btn-raised">
           {showForm ? 'Cancel' : '+ New Chapter'}
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleCreate} className="bg-gray-900 rounded-xl p-5 mb-6 space-y-3">
-          <h2 className="text-sm font-semibold text-white">New Chapter</h2>
-          <input
-            value={form.title}
-            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            placeholder="Chapter title"
-            className="w-full bg-gray-800 text-white rounded-lg px-4 py-2.5 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-500"
-            required
-          />
-          <input
-            value={form.description}
-            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            placeholder="Description (optional)"
-            className="w-full bg-gray-800 text-white rounded-lg px-4 py-2.5 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-500"
-          />
-          {error && <p className="text-red-400 text-xs">{error}</p>}
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium"
-          >
-            {saving ? 'Creating…' : 'Create Chapter'}
-          </button>
-        </form>
+        <div className="neu-card mb-6">
+          <h2 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--neu-text)', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            New Chapter
+          </h2>
+          <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="neu-input-group">
+              <label className="neu-label">Chapter Title</label>
+              <input
+                value={form.title}
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="e.g. Introduction to Algebra"
+                className="neu-input"
+                required
+              />
+            </div>
+            <div className="neu-input-group">
+              <label className="neu-label">Description (optional)</label>
+              <input
+                value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Brief description"
+                className="neu-input"
+              />
+            </div>
+            {error && <p style={{ fontSize: '12px', color: 'var(--neu-danger)' }}>{error}</p>}
+            <button type="submit" disabled={saving} className="neu-btn neu-btn-accent" style={{ alignSelf: 'flex-start' }}>
+              {saving ? 'Creating…' : 'Create Chapter'}
+            </button>
+          </form>
+        </div>
       )}
 
       {loading ? (
-        <p className="text-gray-500">Loading…</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--neu-text-muted)' }}>
+          <div style={{ width: '18px', height: '18px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%' }} className="animate-spin" />
+          Loading…
+        </div>
       ) : chapters.length === 0 ? (
-        <p className="text-gray-500">No chapters yet.</p>
+        <p style={{ color: 'var(--neu-text-muted)' }}>No chapters yet. Create the first one above.</p>
       ) : (
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {chapters.map((chapter, idx) => (
-            <div key={chapter.id} className="bg-gray-900 rounded-xl px-5 py-4 flex items-center justify-between">
-              <div>
-                <span className="text-gray-500 text-sm mr-3">#{idx + 1}</span>
-                <span className="text-white font-medium">{chapter.title}</span>
-                {chapter.description && (
-                  <p className="text-gray-400 text-sm mt-0.5 ml-7">{chapter.description}</p>
-                )}
+            <div key={chapter.id} className="neu-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+                <div className="neu-raised" style={{ width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '13px', fontWeight: 700, color: 'var(--neu-text-muted)' }}>
+                  {idx + 1}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontWeight: 600, color: 'var(--neu-text)' }}>{chapter.title}</p>
+                  {chapter.description && (
+                    <p style={{ fontSize: '12px', color: 'var(--neu-text-muted)', marginTop: '2px' }}>{chapter.description}</p>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                 <button
                   onClick={() => navigate(`/admin/chapters/${chapter.id}`, { state: { chapterTitle: chapter.title } })}
-                  className="text-indigo-400 hover:text-indigo-300 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                  className="neu-btn neu-btn-accent neu-btn-sm"
                 >
                   Edit Frames →
                 </button>
                 <button
                   onClick={() => handleDelete(chapter.id)}
                   disabled={deleting === chapter.id}
-                  className="text-red-400 hover:text-red-300 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                  className="neu-btn neu-btn-danger neu-btn-sm"
                 >
-                  Delete
+                  {deleting === chapter.id ? '…' : 'Delete'}
                 </button>
               </div>
             </div>

@@ -24,43 +24,62 @@ export default function SubjectsPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <p className="text-gray-500">Loading subjects…</p>
+      <div className="p-8 flex items-center gap-3" style={{ color: 'var(--neu-text-muted)' }}>
+        <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        Loading subjects…
       </div>
     );
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-white mb-1">My Subjects</h1>
-      <p className="text-gray-400 text-sm mb-8">Select a subject to start learning</p>
+    <div className="p-8 neu-page min-h-screen">
+      <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--neu-text)' }}>My Subjects</h1>
+      <p className="text-sm mb-8" style={{ color: 'var(--neu-text-muted)' }}>Select a subject to start learning</p>
 
       {subjects.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-gray-500">No subjects assigned yet.</p>
-          <p className="text-gray-600 text-sm mt-1">Contact your admin to get access.</p>
+        <div className="neu-card text-center py-12">
+          <p className="text-4xl mb-4">📭</p>
+          <p style={{ color: 'var(--neu-text-muted)' }}>No subjects assigned yet.</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-muted)', opacity: 0.7 }}>
+            Contact your admin to get access.
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {subjects.map(s => (
-            <button
-              key={s.id}
-              onClick={() => navigate(`/student/subjects/${s.id}`, { state: { subjectName: s.name } })}
-              className="bg-gray-900 hover:bg-gray-800 rounded-2xl p-6 text-left transition-colors group"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{s.class.name}</p>
-                  <h2 className="text-white font-semibold text-lg group-hover:text-indigo-300 transition-colors">{s.name}</h2>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {subjects.map(s => {
+            const iq = iqScores[s.id] ?? 50;
+            const iqColor = iq >= 70 ? 'var(--neu-success)' : iq >= 40 ? 'var(--neu-accent)' : 'var(--neu-warn)';
+            return (
+              <button
+                key={s.id}
+                onClick={() => navigate(`/student/subjects/${s.id}`, { state: { subjectName: s.name } })}
+                className="neu-card text-left"
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1 min-w-0 mr-3">
+                    <span className="neu-badge mb-2" style={{ display: 'inline-flex' }}>
+                      {s.class.name}
+                    </span>
+                    <h2 className="text-base font-bold mt-1" style={{ color: 'var(--neu-text)' }}>{s.name}</h2>
+                  </div>
+                  {/* IQ circle */}
+                  <div className="neu-raised flex flex-col items-center justify-center w-14 h-14 rounded-2xl shrink-0">
+                    <p className="text-lg font-bold leading-none" style={{ color: iqColor }}>{iq}</p>
+                    <p className="text-xs" style={{ color: 'var(--neu-text-muted)' }}>IQ</p>
+                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-2xl font-bold text-indigo-400">{iqScores[s.id] ?? 50}</p>
-                  <p className="text-gray-500 text-xs">IQ</p>
+                {s.description && (
+                  <p className="text-sm" style={{ color: 'var(--neu-text-muted)' }}>{s.description}</p>
+                )}
+                <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--neu-shadow-lite)' }}>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--neu-accent)' }}>
+                    Start learning →
+                  </p>
                 </div>
-              </div>
-              {s.description && <p className="text-gray-400 text-sm mt-2">{s.description}</p>}
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

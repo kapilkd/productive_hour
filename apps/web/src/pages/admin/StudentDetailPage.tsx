@@ -90,51 +90,72 @@ export default function StudentDetailPage() {
   const unassignedSubjects = allSubjects.filter(s => !access.find((a: any) => a.subjectId === s.id));
 
   if (loading) {
-    return <div className="p-8"><p className="text-gray-500">Loading…</p></div>;
+    return (
+      <div className="neu-page p-8" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ width: '24px', height: '24px', border: '2px solid var(--neu-accent)', borderTopColor: 'transparent', borderRadius: '50%' }} className="animate-spin" />
+        <span style={{ color: 'var(--neu-text-muted)' }}>Loading student…</span>
+      </div>
+    );
   }
 
   return (
-    <div className="p-8 space-y-8 max-w-4xl">
-      <div>
-        <button onClick={() => navigate('/admin/students')} className="text-gray-400 hover:text-white text-sm mb-4 flex items-center gap-1">
-          ← Back to Students
-        </button>
-        <h1 className="text-2xl font-bold text-white">{student?.name ?? 'Student'}</h1>
-        <p className="text-gray-400 text-sm mt-1">{student?.email}</p>
+    <div className="p-8 neu-page min-h-screen" style={{ maxWidth: '860px' }}>
+      {/* Header */}
+      <button onClick={() => navigate('/admin/students')} className="neu-btn neu-btn-raised neu-btn-sm mb-6">
+        ← Back to Students
+      </button>
+      <div className="neu-card mb-8" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div className="neu-raised" style={{ width: '56px', height: '56px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
+          👤
+        </div>
+        <div>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--neu-text)' }}>{student?.name ?? 'Student'}</h1>
+          <p style={{ fontSize: '13px', color: 'var(--neu-text-muted)', marginTop: '2px' }}>{student?.email}</p>
+          <span className={student?.isActive ? 'neu-badge-success' : 'neu-badge'} style={{ fontSize: '10px', marginTop: '8px', display: 'inline-flex' }}>
+            {student?.isActive ? 'Active' : 'Inactive'}
+          </span>
+        </div>
       </div>
 
       {/* IQ Scores */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">IQ Scores</h2>
+      <section style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--neu-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
+          IQ Scores per Subject
+        </h2>
         {iqScores.length === 0 ? (
-          <p className="text-gray-500 text-sm">No IQ data yet — student hasn't answered any questions.</p>
+          <p style={{ fontSize: '13px', color: 'var(--neu-text-muted)' }}>No IQ data yet — student hasn't answered any questions.</p>
         ) : (
-          <div className="space-y-2">
-            {iqScores.map(iq => (
-              <div key={iq.id} className="bg-gray-900 rounded-xl px-5 py-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-white text-sm">{iq.subject.name}</span>
-                  <span className="text-indigo-400 font-semibold">{iq.score}/100</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {iqScores.map(iq => {
+              const iqColor = iq.score >= 70 ? 'var(--neu-success)' : iq.score >= 40 ? 'var(--neu-accent)' : 'var(--neu-warn)';
+              return (
+                <div key={iq.id} className="neu-card-sm" style={{ padding: '14px 18px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--neu-text)', fontWeight: 500 }}>{iq.subject.name}</span>
+                    <span style={{ fontWeight: 700, color: iqColor, fontSize: '15px' }}>{iq.score}/100</span>
+                  </div>
+                  <div className="neu-progress-track" style={{ height: '6px' }}>
+                    <div className="neu-progress-fill" style={{ width: `${iq.score}%`, background: iqColor }} />
+                  </div>
                 </div>
-                <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${iq.score}%` }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
 
       {/* Subject Access */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Subject Access</h2>
-        <div className="bg-gray-900 rounded-xl p-5 space-y-4">
-          {/* Grant */}
-          <div className="flex gap-2">
+      <section style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--neu-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
+          Subject Access
+        </h2>
+        <div className="neu-card">
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
             <select
               value={selectedSubjectId}
               onChange={e => setSelectedSubjectId(e.target.value)}
-              className="flex-1 bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="neu-select"
+              style={{ flex: 1 }}
             >
               <option value="">Select a subject to grant…</option>
               {unassignedSubjects.map(s => (
@@ -144,60 +165,64 @@ export default function StudentDetailPage() {
             <button
               onClick={handleGrant}
               disabled={!selectedSubjectId || granting}
-              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium"
+              className="neu-btn neu-btn-accent"
             >
               {granting ? 'Granting…' : 'Grant'}
             </button>
           </div>
 
-          {/* Current access list */}
           {access.length === 0 ? (
-            <p className="text-gray-500 text-sm">No subjects assigned yet.</p>
+            <p style={{ fontSize: '13px', color: 'var(--neu-text-muted)' }}>No subjects assigned yet.</p>
           ) : (
-            <ul className="divide-y divide-gray-800">
-              {access.map(a => (
-                <li key={a.subjectId} className="flex items-center justify-between py-2.5">
-                  <span className="text-gray-200 text-sm">{(a.subject as any)?.name ?? a.subjectId}</span>
-                  <button
-                    onClick={() => handleRevoke(a.subjectId)}
-                    disabled={revoking === a.subjectId}
-                    className="text-red-400 hover:text-red-300 text-sm disabled:opacity-50"
-                  >
-                    Revoke
-                  </button>
-                </li>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {access.map((a, i) => (
+                <div key={a.subjectId}>
+                  {i > 0 && <div className="neu-divider" style={{ margin: '0' }} />}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--neu-text)' }}>{(a.subject as any)?.name ?? a.subjectId}</span>
+                    <button
+                      onClick={() => handleRevoke(a.subjectId)}
+                      disabled={revoking === a.subjectId}
+                      className="neu-btn neu-btn-danger neu-btn-sm"
+                    >
+                      {revoking === a.subjectId ? '…' : 'Revoke'}
+                    </button>
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
       </section>
 
       {/* Chapter Progress */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Chapter Progress</h2>
+        <h2 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--neu-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
+          Chapter Progress
+        </h2>
         {progress.length === 0 ? (
-          <p className="text-gray-500 text-sm">No progress recorded yet.</p>
+          <p style={{ fontSize: '13px', color: 'var(--neu-text-muted)' }}>No progress recorded yet.</p>
         ) : (
-          <div className="bg-gray-900 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="neu-card" style={{ padding: 0, overflow: 'hidden' }}>
+            <table className="neu-table">
               <thead>
-                <tr className="text-left text-gray-500 border-b border-gray-800">
-                  <th className="px-5 py-3 font-medium">Subject</th>
-                  <th className="px-5 py-3 font-medium">Chapter</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
+                <tr>
+                  <th>Subject</th>
+                  <th>Chapter</th>
+                  <th>Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800">
+              <tbody>
                 {progress.map(p => (
                   <tr key={p.id}>
-                    <td className="px-5 py-3 text-gray-400">{p.chapter.subject.name}</td>
-                    <td className="px-5 py-3 text-white">{p.chapter.title}</td>
-                    <td className="px-5 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        p.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                        p.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                        'bg-gray-700 text-gray-400'
-                      }`}>
+                    <td style={{ color: 'var(--neu-text-muted)' }}>{p.chapter.subject.name}</td>
+                    <td style={{ color: 'var(--neu-text)', fontWeight: 500 }}>{p.chapter.title}</td>
+                    <td>
+                      <span className={
+                        p.status === 'completed' ? 'neu-badge-success' :
+                        p.status === 'in_progress' ? 'neu-badge-info' :
+                        'neu-badge'
+                      } style={{ fontSize: '10px' }}>
                         {p.status.replace('_', ' ')}
                       </span>
                     </td>

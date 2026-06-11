@@ -4,16 +4,17 @@ import type { Frame, AudioStatus } from '../../types';
 
 // ── TTS Status Badge ──────────────────────────────────────────────────────────
 
-const statusStyles: Record<AudioStatus, string> = {
-  pending:    'bg-yellow-500/20 text-yellow-400',
-  generating: 'bg-blue-500/20 text-blue-400',
-  ready:      'bg-green-500/20 text-green-400',
-  failed:     'bg-red-500/20 text-red-400',
+const statusClass: Record<AudioStatus, string> = {
+  pending:    'neu-badge-warn',
+  generating: 'neu-badge-info',
+  ready:      'neu-badge-success',
+  failed:     '',
 };
 
 export function TTSBadge({ status }: { status: AudioStatus }) {
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusStyles[status]}`}>
+    <span className={`neu-badge ${statusClass[status]}`}
+          style={status === 'failed' ? { background: '#7f1d1d', color: '#f87171' } : undefined}>
       {status}
     </span>
   );
@@ -36,46 +37,45 @@ export function AddFrameForm({ chapterId, nextIndex, onAdded, onCancel }: AddFra
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
-    setSaving(true);
-    setError('');
+    setSaving(true); setError('');
     try {
       const { data } = await apiClient.post('/admin/frames', {
-        chapterId,
-        contentText: text.trim(),
-        orderIndex: nextIndex,
+        chapterId, contentText: text.trim(), orderIndex: nextIndex,
       });
       onAdded(data);
     } catch (err: any) {
       setError(err.response?.data?.error ?? 'Failed to create frame');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-gray-800 rounded-xl p-4 space-y-3 border border-gray-700">
-      <textarea
-        value={text}
-        onChange={e => setText(e.target.value)}
-        placeholder="Frame content — this text will be narrated to the student"
-        rows={3}
-        className="w-full bg-gray-900 text-white rounded-lg px-4 py-3 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-500 resize-none"
-        required
-      />
-      {error && <p className="text-red-400 text-xs">{error}</p>}
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium"
-        >
-          {saving ? 'Adding…' : 'Add Frame'}
-        </button>
-        <button type="button" onClick={onCancel} className="text-gray-400 hover:text-white px-4 py-2 text-sm">
-          Cancel
-        </button>
-      </div>
-    </form>
+    <div className="neu-card">
+      <p className="mb-3" style={{ color: 'var(--neu-text-muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        Manual Frame
+      </p>
+      <form onSubmit={handleSubmit}>
+        <div className="neu-input-group">
+          <label className="neu-label">Narration text</label>
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="This text will be narrated to the student…"
+            rows={3}
+            className="neu-textarea"
+            required
+          />
+        </div>
+        {error && <p className="text-sm mb-3" style={{ color: 'var(--neu-danger)' }}>{error}</p>}
+        <div className="flex gap-2">
+          <button type="submit" disabled={saving} className="neu-btn neu-btn-accent neu-btn-sm">
+            {saving ? 'Adding…' : 'Add Frame'}
+          </button>
+          <button type="button" onClick={onCancel} className="neu-btn neu-btn-raised neu-btn-sm">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -99,77 +99,79 @@ export function FrameRow({ frame, index, onUpdated, onDeleted }: FrameRowProps) 
     setSaving(true);
     try {
       const { data } = await apiClient.put(`/admin/frames/${frame.id}`, { contentText: text.trim() });
-      onUpdated(data);
-      setEditing(false);
-    } finally {
-      setSaving(false);
-    }
+      onUpdated(data); setEditing(false);
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
     if (!confirm('Delete this frame?')) return;
     setDeleting(true);
-    try {
-      await apiClient.delete(`/admin/frames/${frame.id}`);
-      onDeleted(frame.id);
-    } finally {
-      setDeleting(false);
-    }
+    try { await apiClient.delete(`/admin/frames/${frame.id}`); onDeleted(frame.id); }
+    finally { setDeleting(false); }
   };
 
   return (
-    <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <span className="text-gray-500 text-sm shrink-0 mt-0.5">#{index + 1}</span>
-          <div className="flex-1 min-w-0">
-            {editing ? (
-              <textarea
-                value={text}
-                onChange={e => setText(e.target.value)}
-                rows={3}
-                autoFocus
-                className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-              />
-            ) : (
-              <p className="text-gray-200 text-sm leading-relaxed">{frame.contentText}</p>
-            )}
-            <div className="mt-2">
-              <TTSBadge status={frame.audioStatus} />
-            </div>
+    <div className="neu-card-sm">
+      <div className="flex items-start gap-3">
+        {/* Frame number */}
+        <div className="neu-raised flex items-center justify-center w-7 h-7 rounded-lg shrink-0 text-xs font-bold"
+             style={{ color: 'var(--neu-accent)', minWidth: '28px' }}>
+          {index + 1}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {frame.frameTitle && (
+            <p className="text-xs font-semibold mb-1" style={{ color: 'var(--neu-accent)' }}>
+              {frame.frameTitle}
+            </p>
+          )}
+          {editing ? (
+            <textarea
+              value={text}
+              onChange={e => setText(e.target.value)}
+              rows={3}
+              autoFocus
+              className="neu-textarea"
+              style={{ fontSize: '13px' }}
+            />
+          ) : (
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--neu-text)' }}>
+              {frame.contentText}
+            </p>
+          )}
+          <div className="flex items-center gap-2 mt-2">
+            <TTSBadge status={frame.audioStatus} />
+            <span className="neu-badge" style={{ fontSize: '10px' }}>
+              {frame.layoutType?.replace('_', ' ') ?? 'concept'}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+
+        {/* Actions */}
+        <div className="flex gap-1.5 shrink-0">
           {editing ? (
             <>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="text-green-400 hover:text-green-300 text-sm px-2 py-1 rounded hover:bg-gray-800 disabled:opacity-50"
-              >
-                {saving ? 'Saving…' : 'Save'}
+              <button onClick={handleSave} disabled={saving}
+                className="neu-btn neu-btn-accent neu-btn-sm">
+                {saving ? '…' : 'Save'}
               </button>
-              <button
-                onClick={() => { setText(frame.contentText); setEditing(false); }}
-                className="text-gray-400 hover:text-white text-sm px-2 py-1 rounded hover:bg-gray-800"
-              >
-                Cancel
+              <button onClick={() => { setText(frame.contentText); setEditing(false); }}
+                className="neu-btn neu-btn-raised neu-btn-sm">
+                ✕
               </button>
             </>
           ) : (
             <>
-              <button
-                onClick={() => setEditing(true)}
-                className="text-indigo-400 hover:text-indigo-300 text-sm px-2 py-1 rounded hover:bg-gray-800"
-              >
-                Edit
+              <button onClick={() => setEditing(true)}
+                className="neu-btn-icon neu-btn"
+                title="Edit" style={{ fontSize: '14px' }}>
+                ✏️
               </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="text-red-400 hover:text-red-300 text-sm px-2 py-1 rounded hover:bg-gray-800 disabled:opacity-50"
-              >
-                Delete
+              <button onClick={handleDelete} disabled={deleting}
+                className="neu-btn-icon neu-btn"
+                title="Delete" style={{ fontSize: '14px' }}>
+                🗑️
               </button>
             </>
           )}
