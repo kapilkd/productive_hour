@@ -91,6 +91,17 @@ router.delete('/:id/access/:subjectId', async (req: AuthRequest, res: Response) 
   res.status(204).end();
 });
 
+// GET /admin/students/:id/access — list subject access records for this student
+router.get('/:id/access', async (req: AuthRequest, res: Response) => {
+  const studentId = req.params.id as string;
+  const records = await prisma.studentSubjectAccess.findMany({
+    where: { studentId },
+    include: { subject: { include: { class: true } } },
+    orderBy: { grantedAt: 'desc' },
+  });
+  res.json(records);
+});
+
 // GET /admin/students/:id/progress
 router.get('/:id/progress', async (req: AuthRequest, res: Response) => {
   const studentId = req.params.id as string;

@@ -1,5 +1,7 @@
 import { Queue, Worker, Job } from 'bullmq';
 import prisma from '../lib/prisma';
+import { generateAudio } from '../services/tts.service';
+import { uploadAudio } from '../services/storage.service';
 
 export interface TTSJobData {
   frameId: string;
@@ -25,19 +27,32 @@ export const ttsQueue = new Queue<TTSJobData>('tts', { connection });
 export const ttsWorker = new Worker<TTSJobData>(
   'tts',
   async (job: Job<TTSJobData>) => {
-    const { frameId, text } = job.data;
-    console.log(`[TTS Stub] Processing frame ${frameId}: "${text.slice(0, 60)}..."`);
+    const { frameId, text, voiceId } = job.data;
+    console.log(`[TTS] Generating audio for frame ${frameId}: "${text.slice(0, 60)}…"`);
 
-    // TTS stub: replace with real ElevenLabs + S3 calls in Phase 2 Step 14
-    await prisma.frame.update({
-      where: { id: frameId },
-      data: {
-        audioStatus: 'ready',
-        audioUrl: `https://placeholder-audio.example.com/frames/${frameId}.mp3`,
-      },
-    });
+    try {
+      await prisma.frame.update({
+        where: { id: frameId },
+        data: { audioStatus: 'generating' },
+      });
 
-    console.log(`[TTS Stub] Frame ${frameId} marked ready`);
+      const buffer = await generateAudio(text, voiceId);
+      const audioUrl = await uploadAudio(frameId, buffer);
+
+      await prisma.frame.update({
+        where: { id: frameId },
+        data: { audioStatus: 'ready', audioUrl },
+      });
+
+      console.log(`[TTS] Frame ${frameId} ready — ${buffer.length} bytes → ${audioUrl}`);
+    } catch (err) {
+      console.error(`[TTS] Frame ${frameId} failed:`, (err as Error).message);
+      await prisma.frame.update({
+        where: { id: frameId },
+        data: { audioStatus: 'failed' },
+      }).catch(() => {});
+      throw err; // re-throw so BullMQ retries
+    }
   },
   { connection }
 );

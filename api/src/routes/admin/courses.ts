@@ -70,6 +70,15 @@ router.get('/classes/:id/subjects', async (req: AuthRequest, res: Response) => {
   res.json(subjects);
 });
 
+// GET /admin/subjects — flat list across all classes (needed by StudentDetailPage subject dropdown)
+router.get('/subjects', async (_req: AuthRequest, res: Response) => {
+  const subjects = await prisma.subject.findMany({
+    include: { class: true },
+    orderBy: [{ class: { name: 'asc' } }, { name: 'asc' }],
+  });
+  res.json(subjects);
+});
+
 // GET /admin/subjects/:id  — needed by SubjectDetailPage
 router.get('/subjects/:id', async (req: AuthRequest, res: Response) => {
   const subject = await prisma.subject.findUnique({ where: { id: req.params.id as string } });
