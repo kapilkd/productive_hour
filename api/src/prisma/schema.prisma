@@ -20,6 +20,24 @@ enum AudioStatus {
   failed
 }
 
+enum ProcessingStatus {
+  idle
+  processing
+  done
+  failed
+}
+
+enum LayoutType {
+  title
+  concept
+  definition
+  image_focus
+  split
+  table_layout
+  quote
+  summary
+}
+
 enum ChapterStatus {
   not_started
   in_progress
@@ -56,13 +74,26 @@ model User {
   @@map("users")
 }
 
+model Board {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  classes Class[]
+
+  @@map("boards")
+}
+
 model Class {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boardId     String?   @map("board_id") @db.Uuid
   name        String
   description String?
   createdBy   String    @map("created_by") @db.Uuid
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
+  board    Board?    @relation(fields: [boardId], references: [id])
   creator  User      @relation("ClassCreatedBy", fields: [createdBy], references: [id])
   subjects Subject[]
 
@@ -89,13 +120,16 @@ model Subject {
 }
 
 model Chapter {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  subjectId   String    @map("subject_id") @db.Uuid
-  title       String
-  description String?
-  orderIndex  Int       @map("order_index")
-  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjectId         String           @map("subject_id") @db.Uuid
+  title             String
+  description       String?
+  orderIndex        Int              @map("order_index")
+  sourcePdfUrl      String?          @map("source_pdf_url")
+  processingStatus  ProcessingStatus @default(idle) @map("processing_status")
+  processingError   String?          @map("processing_error")
+  deletedAt         DateTime?        @map("deleted_at") @db.Timestamptz
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
 
   subject    Subject                  @relation(fields: [subjectId], references: [id])
   frames     Frame[]
@@ -110,6 +144,10 @@ model Frame {
   chapterId       String      @map("chapter_id") @db.Uuid
   orderIndex      Int         @map("order_index")
   contentText     String      @map("content_text")
+  frameTitle      String?     @map("frame_title")
+  layoutType      LayoutType  @default(concept) @map("layout_type")
+  contentBlocks   Json?       @map("content_blocks")
+  extractedImages Json?       @map("extracted_images")
   imageUrl        String?     @map("image_url")
   audioUrl        String?     @map("audio_url")
   audioStatus     AudioStatus @default(pending) @map("audio_status")

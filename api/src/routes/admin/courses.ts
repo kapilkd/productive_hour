@@ -1,14 +1,30 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
+import multer from 'multer';
 import prisma from '../../lib/prisma';
 import { AuthRequest } from '../../middleware/auth';
 import { enqueueTTSJob } from '../../jobs/tts.job';
+import { processPDFForChapter } from '../../services/pdf.service';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    file.mimetype === 'application/pdf' ? cb(null, true) : cb(new Error('Only PDF files are allowed'));
+  },
+});
 
 const router = Router();
 
 // ── Validation schemas ────────────────────────────────────────────────────────
 
+const createBoardSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  description: z.string().optional(),
+});
+
 const createClassSchema = z.object({
+  boardId: z.string().uuid('boardId must be a valid UUID'),
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
 });
@@ -41,10 +57,43 @@ const updateFrameSchema = z.object({
   orderIndex: z.number().int().min(0).optional(),
 });
 
+// ── Boards ────────────────────────────────────────────────────────────────────
+
+router.get('/boards', async (_req: AuthRequest, res: Response) => {
+  const boards = await prisma.board.findMany({
+    orderBy: { name: 'asc' },
+    include: { _count: { select: { classes: true } } },
+  });
+  res.json(boards);
+});
+
+router.post('/boards', async (req: AuthRequest, res: Response) => {
+  const result = createBoardSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: result.error.issues[0].message });
+    return;
+  }
+  const board = await prisma.board.create({ data: result.data });
+  res.status(201).json(board);
+});
+
+router.get('/boards/:id/classes', async (req: AuthRequest, res: Response) => {
+  const classes = await prisma.class.findMany({
+    where: { boardId: req.params.id as string },
+    orderBy: { createdAt: 'asc' },
+    include: { _count: { select: { subjects: true } } },
+  });
+  res.json(classes);
+});
+
 // ── Classes ───────────────────────────────────────────────────────────────────
 
-router.get('/classes', async (_req: AuthRequest, res: Response) => {
-  const classes = await prisma.class.findMany({ orderBy: { createdAt: 'desc' } });
+router.get('/classes', async (req: AuthRequest, res: Response) => {
+  const { boardId } = req.query;
+  const classes = await prisma.class.findMany({
+    where: boardId ? { boardId: boardId as string } : undefined,
+    orderBy: { createdAt: 'desc' },
+  });
   res.json(classes);
 });
 
@@ -140,6 +189,37 @@ router.delete('/chapters/:id', async (req: AuthRequest, res: Response) => {
     data: { deletedAt: new Date() },
   });
   res.status(204).end();
+});
+
+// ── PDF Upload ────────────────────────────────────────────────────────────────
+
+router.post('/chapters/:id/upload-pdf', upload.single('pdf'), async (req: AuthRequest, res: Response) => {
+  const file = (req as any).file as Express.Multer.File | undefined;
+  if (!file) { res.status(400).json({ error: 'No PDF file provided' }); return; }
+
+  const chapterId = req.params.id as string;
+  const chapter = await prisma.chapter.findUnique({ where: { id: chapterId } });
+  if (!chapter) { res.status(404).json({ error: 'Chapter not found' }); return; }
+
+  // Respond immediately — processing runs in background
+  res.status(202).json({ message: 'PDF accepted, processing started', chapterId });
+
+  processPDFForChapter(chapterId, file.buffer, file.originalname)
+    .catch(err => console.error(`[PDF] processing failed for chapter ${chapterId}:`, err));
+});
+
+router.get('/chapters/:id/processing-status', async (req: AuthRequest, res: Response) => {
+  const chapter = await prisma.chapter.findUnique({
+    where: { id: req.params.id as string },
+    select: {
+      processingStatus: true,
+      processingError: true,
+      sourcePdfUrl: true,
+      _count: { select: { frames: true } },
+    },
+  });
+  if (!chapter) { res.status(404).json({ error: 'Chapter not found' }); return; }
+  res.json(chapter);
 });
 
 // ── Frames ────────────────────────────────────────────────────────────────────

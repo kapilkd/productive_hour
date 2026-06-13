@@ -33,6 +33,16 @@ export async function uploadImage(frameId: string, buffer: Buffer, ext: string):
   return `${baseUrl}/${key}`;
 }
 
+export async function uploadFile(key: string, buffer: Buffer, contentType: string): Promise<string> {
+  await s3.send(new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    Body: buffer,
+    ContentType: contentType,
+  }));
+  return `${baseUrl}/${key}`;
+}
+
 export async function deleteFile(key: string): Promise<void> {
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }

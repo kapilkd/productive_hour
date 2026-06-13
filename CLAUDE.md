@@ -24,13 +24,14 @@
 16. [Environment Variables](#16-environment-variables)
 17. [Phase-wise Build Plan](#17-phase-wise-build-plan)
 18. [Deployment](#18-deployment)
-19. [Known Decisions & Open Questions](#19-known-decisions--open-questions)
+19. [Frontend Design System — Neumorphic](#19-frontend-design-system--neumorphic)
+20. [Known Decisions & Open Questions](#20-known-decisions--open-questions)
 
 ---
 
 ## 1. Project Vision
 
-An LLM-powered adaptive learning platform where students **listen** to chapters rather than read them. Content is organized in a hierarchy: **Class → Subject → Chapter → Frames**. Each frame is narrated automatically using text-to-speech. After key frames, the LLM generates context-aware questions tuned to the student's current IQ score to reinforce retention and encourage progress.
+An LLM-powered adaptive learning platform where students **listen** to chapters rather than read them. Content is organized in a hierarchy: **Board → Class → Subject → Chapter → Frames** (e.g. CBSE → Grade 10 → Mathematics → Algebra → Frame 1). Each frame is narrated automatically using text-to-speech. After key frames, the LLM generates context-aware questions tuned to the student's current IQ score to reinforce retention and encourage progress.
 
 **Core principles:**
 - Student never needs to type or read — the app speaks to them.
@@ -57,8 +58,9 @@ An LLM-powered adaptive learning platform where students **listen** to chapters 
 
 ### Admin flow
 ```
-Login → Dashboard → Create Class → Add Subjects to Class
-→ Add Chapters to Subject → Add Frames to Chapter (text + optional image)
+Login → Dashboard → Select Board (CBSE/ICSE/State Board) → Create Class
+→ Add Subjects to Class → Add Chapters to Subject
+→ Add Frames to Chapter (text + optional image)
 → Assign Subject to Student(s) → Monitor student progress
 ```
 
@@ -205,8 +207,16 @@ users
 
 ### Course hierarchy
 ```sql
+boards
+  id              UUID PRIMARY KEY
+  name            TEXT UNIQUE NOT NULL         -- 'CBSE', 'ICSE', 'State Board'
+  description     TEXT
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+  -- Pre-seeded: CBSE, ICSE, State Board
+
 classes
   id              UUID PRIMARY KEY
+  board_id        UUID REFERENCES boards(id)   -- nullable for legacy rows
   name            TEXT NOT NULL
   description     TEXT
   created_by      UUID REFERENCES users(id)
@@ -228,14 +238,21 @@ chapters
   title           TEXT NOT NULL
   description     TEXT
   order_index     INT NOT NULL              -- sort order within subject
+  source_pdf_url  TEXT                      -- S3 URL of uploaded PDF
+  processing_status ENUM('idle','processing','done','failed') DEFAULT 'idle'
+  processing_error  TEXT                   -- error message if processing failed
   created_at      TIMESTAMPTZ DEFAULT NOW()
 
 frames
   id              UUID PRIMARY KEY
   chapter_id      UUID REFERENCES chapters(id)
   order_index     INT NOT NULL              -- sort order within chapter
-  content_text    TEXT NOT NULL             -- narrated text
-  image_url       TEXT                      -- optional illustration
+  content_text    TEXT NOT NULL             -- narration text (TTS reads this)
+  frame_title     TEXT                      -- visual headline on the slide
+  layout_type     ENUM('title','concept','definition','image_focus','split','table_layout','quote','summary') DEFAULT 'concept'
+  content_blocks  JSONB                     -- structured visual data per layout type
+  extracted_images JSONB                   -- [{url, caption}] images from PDF
+  image_url       TEXT                      -- legacy / manual image upload
   audio_url       TEXT                      -- generated TTS audio (S3 URL)
   audio_status    ENUM('pending','generating','ready','failed') DEFAULT 'pending'
   duration_seconds FLOAT                   -- audio duration in seconds
@@ -324,8 +341,11 @@ POST   /auth/logout           Header: Authorization     → 200 OK
 
 ### Admin — Course management
 ```
-GET    /admin/classes                          → List all classes
-POST   /admin/classes                          → Create class
+GET    /admin/boards                           → List all boards (pre-seeded: CBSE, ICSE, State Board)
+POST   /admin/boards                           → Create new board
+GET    /admin/boards/:id/classes               → List classes under a board
+GET    /admin/classes                          → List all classes (optional ?boardId= filter)
+POST   /admin/classes                          → Create class (requires boardId in body)
 GET    /admin/classes/:id/subjects             → List subjects in class
 POST   /admin/subjects                         → Create subject
 PUT    /admin/subjects/:id                     → Update subject
@@ -334,7 +354,9 @@ POST   /admin/chapters                         → Create chapter
 PUT    /admin/chapters/:id                     → Update chapter
 DELETE /admin/chapters/:id                     → Soft delete chapter
 GET    /admin/chapters/:id/frames              → List frames
-POST   /admin/frames                           → Create frame (triggers TTS job)
+POST   /admin/chapters/:id/upload-pdf          → Upload PDF → Claude Vision → auto-generate frames + TTS (202)
+GET    /admin/chapters/:id/processing-status   → Poll AI processing status
+POST   /admin/frames                           → Create frame manually (triggers TTS job)
 PUT    /admin/frames/:id                       → Update frame (re-triggers TTS)
 DELETE /admin/frames/:id                       → Delete frame
 ```
@@ -376,8 +398,9 @@ GET    /admin/frames/:id/tts-status            → Check TTS generation status
 /login
 /admin
   /admin/dashboard
-  /admin/classes
-  /admin/classes/:classId
+  /admin/boards                         ← Board list (CBSE / ICSE / State Board)
+  /admin/boards/:boardId                ← Classes within a board
+  /admin/classes/:classId               ← Subjects within a class
   /admin/subjects/:subjectId
   /admin/chapters/:chapterId
   /admin/students
@@ -529,13 +552,18 @@ async function generateQuestion(params: QuestionParams) {
 
 ## 10. Audio Narration Engine
 
-### How it works
-1. Admin saves a frame (or updates frame text).
-2. Backend enqueues a TTS job in BullMQ (Redis queue).
-3. TTS worker picks up the job, calls TTS API with the frame text.
-4. Audio file (MP3) is uploaded to S3.
-5. Frame's `audio_url` and `audio_status` are updated in DB.
-6. Frontend polls frame status or receives a WebSocket event when audio is ready.
+### How it works (PDF path — primary)
+1. Admin uploads PDF to a chapter.
+2. `pdf.service.ts` sends PDF to Claude Vision as a base64 document.
+3. Claude returns structured JSON frames → saved to DB with `content_blocks` + `narration_text`.
+4. TTS job enqueued per frame automatically.
+5. TTS worker calls ElevenLabs with `frame.contentText` (the narration text).
+6. MP3 uploaded to S3 → `audio_url` + `audio_status: ready` updated in DB.
+
+### How it works (manual path — fallback)
+1. Admin types text in AddFrameForm → saved as `contentText`.
+2. TTS job auto-enqueued.
+3. Same TTS pipeline as above.
 
 ### TTS job schema
 ```typescript
@@ -903,7 +931,40 @@ CDN:         Cloudflare (for audio files — low latency in India)
 
 ---
 
-## 19. Known Decisions & Open Questions
+## 19. Frontend Design System — Neumorphic
+
+The entire web UI uses a neumorphic (soft UI) design system defined in `apps/web/src/index.css`.
+
+### Theme
+- **Always dark** — `:root` forces dark palette regardless of OS setting.
+- **Single background**: `#1e2130` with two shadow colors (`#161827` dark, `#262a3f` light).
+- **Accent**: `#818cf8` (indigo).
+
+### CSS variable tokens
+```
+--neu-bg, --neu-shadow-dark, --neu-shadow-lite
+--neu-text, --neu-text-muted
+--neu-accent, --neu-accent-text
+--neu-danger, --neu-success, --neu-warn
+```
+
+### Core utility classes
+`neu-page`, `neu-raised`, `neu-inset`, `neu-flat`, `neu-card`, `neu-card-sm`,
+`neu-btn` + modifiers (`-raised`, `-accent`, `-danger`, `-pill`, `-sm`, `-lg`, `-icon`),
+`neu-input`, `neu-textarea`, `neu-select`, `neu-label`, `neu-input-group`,
+`neu-toggle-track/thumb/active`, `neu-progress-track/fill`,
+`neu-badge` + variants (`-accent`, `-success`, `-warn`, `-info`),
+`neu-nav-link`, `neu-nav-link-active`, `neu-slide`, `neu-bullet-item`,
+`neu-highlight-box`, `neu-dropzone`, `neu-dropzone-active`, `neu-table`.
+
+### Principle
+- Layout utilities (flex, grid, gap, padding) still use Tailwind.
+- Colors, shadows, and depth effects always go through CSS variables — never raw Tailwind color classes on UI elements.
+- All pages and components use `neu-*` classes; no `bg-gray-*` / `text-gray-*` / `border-gray-*` in UI files.
+
+---
+
+## 20. Known Decisions & Open Questions
 
 ### Decided
 | Decision | Choice | Reason |
